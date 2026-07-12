@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { useGame } from "@/lib/game-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,30 +15,22 @@ import {
   Skull,
   Sun,
   Sparkles,
+  Zap,
+  Activity,
+  Sword,
+  Wind,
+  Moon,
+  Droplet,
+  LucideProps
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { CombatSimulation } from "@/lib/combat/simulation"
+import { Actor } from "@/lib/combat/actor"
+import { getClassAbilities, Ability } from "@/lib/combat/ability"
+import ArenaCanvasContainer from "./arena-3d-canvas"
 
 interface GameArenaScreenProps {
   onBack: () => void
-}
-
-interface Player {
-  id: string
-  name: string
-  class: string
-  x: number
-  y: number
-  health: number
-  maxHealth: number
-  isUser?: boolean
-}
-
-interface Boss {
-  name: string
-  x: number
-  y: number
-  health: number
-  maxHealth: number
 }
 
 const classIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -65,367 +55,480 @@ const classColors: Record<string, string> = {
   shaman: "text-cyan-400",
 }
 
-const aiPlayers: Player[] = [
-  { id: "bob", name: "Bob", class: "warrior", x: 120, y: 280, health: 100, maxHealth: 100 },
-  { id: "jessica", name: "Jessica", class: "mage", x: 180, y: 220, health: 85, maxHealth: 100 },
-  { id: "dillan", name: "Dillan", class: "priest", x: 140, y: 340, health: 100, maxHealth: 100 },
-  { id: "sarah", name: "Sarah", class: "hunter", x: 200, y: 300, health: 70, maxHealth: 100 },
-]
+const abilityIcons: Record<string, React.ComponentType<LucideProps>> = {
+  Shield,
+  Heart,
+  Crosshair,
+  Sparkles,
+  Flame,
+  Skull,
+  Sun,
+  Zap,
+  Activity,
+  Sword,
+  Wind,
+  Moon,
+  Droplet
+}
 
 export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
   const { username, selectedClass, companionType, gameMode } = useGame()
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  
+  // 1. Initialize the 3D Combat Simulation Engine (persists in ref)
+  const simRef = useRef<CombatSimulation | null>(null)
+  if (!simRef.current) {
+    simRef.current = new CombatSimulation(username, selectedClass || "warrior")
+  }
+  const simulation = simRef.current
 
-  const [players, setPlayers] = useState<Player[]>([
-    ...aiPlayers.map((p) => ({ ...p })),
-    {
-      id: "user",
-      name: username || "You",
-      class: selectedClass || "warrior",
-      x: 160,
-      y: 260,
-      health: 100,
-      maxHealth: 100,
-      isUser: true,
-    },
-  ])
+  const player = simulation.playerActor
+  const boss = simulation.bossActor
 
-  const [boss, setBoss] = useState<Boss>({
-    name: "Evil Boss",
-    x: 500,
-    y: 260,
-    health: 500,
-    maxHealth: 500,
-  })
+  // State to trigger React HUD updates (updated periodically at 10hz from state)
+  const [selectedTarget, setSelectedTarget] = useState<Actor | null>(player.target)
+  const [battleLog, setBattleLog] = useState<string[]>([...simulation.battleLog])
+  const [party, setParty] = useState<Actor[]>([...simulation.actors.filter(a => a.faction === "player")])
+  const [bossHp, setBossHp] = useState(boss.health)
+  const [playerHp, setPlayerHp] = useState(player.health)
+  const [playerResources, setPlayerResources] = useState({ ...player.resources })
+  const [cooldowns, setCooldowns] = useState<Record<string, number>>({})
+  const [gcdRemaining, setGcdRemaining] = useState(0)
 
-  const [battleLog, setBattleLog] = useState<string[]>(["Battle has begun!"])
-  const [isAttacking, setIsAttacking] = useState(false)
+  // Abilities lists
+  const playerAbilities = getClassAbilities(player.class)
 
+  // Periodic React state pull (10Hz) to prevent performance issues
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-
-    const draw = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-      // Sky
-      ctx.fillStyle = "#1a1f2e"
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-      // Clouds
-      ctx.fillStyle = "#3a4a6a"
-      drawCloud(ctx, 400, 50, 60)
-      drawCloud(ctx, 520, 80, 40)
-      ctx.fillStyle = "#5a9fd4"
-      drawCloud(ctx, 460, 40, 30)
-
-      // Sun
-      ctx.fillStyle = "#f59e0b"
-      ctx.beginPath()
-      ctx.arc(580, 60, 20, 0, Math.PI * 2)
-      ctx.fill()
-
-      // Ground
-      ctx.fillStyle = "#2a3a2a"
-      ctx.fillRect(0, 380, canvas.width, 120)
-
-      // House
-      ctx.fillStyle = "#4a3a2a"
-      ctx.fillRect(530, 320, 60, 60)
-      ctx.fillStyle = "#6a4a2a"
-      ctx.beginPath()
-      ctx.moveTo(520, 320)
-      ctx.lineTo(560, 280)
-      ctx.lineTo(600, 320)
-      ctx.closePath()
-      ctx.fill()
-
-      // Draw players
-      players.forEach((player) => {
-        drawStickFigure(ctx, player.x, player.y, player.isUser ? "#f59e0b" : "#e0e0e0", player.name)
-      })
-
-      // Draw boss
-      drawBoss(ctx, boss.x, boss.y, boss.name)
+    simulation.onLogUpdate = (newLogs) => {
+      setBattleLog(newLogs)
     }
 
-    draw()
-  }, [players, boss])
+    const interval = setInterval(() => {
+      // Sync party health / resources
+      setParty([...simulation.actors.filter(a => a.faction === "player")])
+      setBossHp(boss.health)
+      setPlayerHp(player.health)
+      setPlayerResources({ ...player.resources })
+      setGcdRemaining(player.gcdRemaining)
+      
+      // Update targeted actor reference
+      setSelectedTarget(player.target)
 
-  const drawCloud = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-    ctx.beginPath()
-    ctx.arc(x, y, size, 0, Math.PI * 2)
-    ctx.arc(x + size * 0.8, y - size * 0.3, size * 0.7, 0, Math.PI * 2)
-    ctx.arc(x + size * 1.4, y, size * 0.6, 0, Math.PI * 2)
-    ctx.fill()
+      // Sync active cooldowns
+      const cds: Record<string, number> = {}
+      playerAbilities.forEach((ab) => {
+        cds[ab.id] = player.getCooldown(ab.id)
+      })
+      setCooldowns(cds)
+    }, 100)
+
+    return () => {
+      clearInterval(interval)
+    }
+  }, [simulation, player, boss, playerAbilities])
+
+  // Keybinding Listeners (1 and 2 keys for Abilities)
+  useEffect(() => {
+    const handleKeys = (e: KeyboardEvent) => {
+      if (e.key === "1") {
+        e.preventDefault()
+        castAbility(playerAbilities[0])
+      } else if (e.key === "2") {
+        e.preventDefault()
+        castAbility(playerAbilities[1])
+      }
+    }
+
+    window.addEventListener("keydown", handleKeys)
+    return () => {
+      window.removeEventListener("keydown", handleKeys)
+    }
+  }, [playerAbilities, selectedTarget])
+
+  const castAbility = (ability: Ability) => {
+    if (!ability) return
+    if (player.health <= 0 || boss.health <= 0) return
+    
+    // Attempt casting on currently selected target
+    ability.startCast(player, player.target, simulation)
   }
 
-  const drawStickFigure = (ctx: CanvasRenderingContext2D, x: number, y: number, color: string, name: string) => {
-    ctx.strokeStyle = color
-    ctx.fillStyle = color
-    ctx.lineWidth = 2
-
-    // Head
-    ctx.beginPath()
-    ctx.arc(x, y - 30, 8, 0, Math.PI * 2)
-    ctx.stroke()
-
-    // Body
-    ctx.beginPath()
-    ctx.moveTo(x, y - 22)
-    ctx.lineTo(x, y + 5)
-    ctx.stroke()
-
-    // Arms
-    ctx.beginPath()
-    ctx.moveTo(x - 15, y - 10)
-    ctx.lineTo(x + 15, y - 10)
-    ctx.stroke()
-
-    // Legs
-    ctx.beginPath()
-    ctx.moveTo(x, y + 5)
-    ctx.lineTo(x - 10, y + 25)
-    ctx.moveTo(x, y + 5)
-    ctx.lineTo(x + 10, y + 25)
-    ctx.stroke()
-
-    // Name
-    ctx.fillStyle = "#e0e0e0"
-    ctx.font = "10px sans-serif"
-    ctx.textAlign = "center"
-    ctx.fillText(name, x, y + 40)
-  }
-
-  const drawBoss = (ctx: CanvasRenderingContext2D, x: number, y: number, name: string) => {
-    ctx.strokeStyle = "#ef4444"
-    ctx.fillStyle = "#ef4444"
-    ctx.lineWidth = 3
-
-    // Large head
-    ctx.beginPath()
-    ctx.arc(x, y - 40, 20, 0, Math.PI * 2)
-    ctx.stroke()
-
-    // Evil eyes
-    ctx.fillStyle = "#ef4444"
-    ctx.beginPath()
-    ctx.arc(x - 6, y - 45, 3, 0, Math.PI * 2)
-    ctx.arc(x + 6, y - 45, 3, 0, Math.PI * 2)
-    ctx.fill()
-
-    // Body (larger)
-    ctx.strokeStyle = "#ef4444"
-    ctx.beginPath()
-    ctx.moveTo(x, y - 20)
-    ctx.lineTo(x, y + 30)
-    ctx.stroke()
-
-    // Arms (wider)
-    ctx.beginPath()
-    ctx.moveTo(x - 30, y)
-    ctx.lineTo(x + 30, y)
-    ctx.stroke()
-
-    // Legs (wider)
-    ctx.beginPath()
-    ctx.moveTo(x, y + 30)
-    ctx.lineTo(x - 20, y + 60)
-    ctx.moveTo(x, y + 30)
-    ctx.lineTo(x + 20, y + 60)
-    ctx.stroke()
-
-    // Name
-    ctx.fillStyle = "#ef4444"
-    ctx.font = "12px sans-serif"
-    ctx.textAlign = "center"
-    ctx.fillText(name, x, y + 80)
-  }
-
-  const handleAttack = () => {
-    if (isAttacking) return
-    setIsAttacking(true)
-
-    const damage = Math.floor(Math.random() * 30) + 20
-    const userPlayer = players.find((p) => p.isUser)
-
-    setBoss((prev) => ({
-      ...prev,
-      health: Math.max(0, prev.health - damage),
-    }))
-
-    setBattleLog((prev) => [`${userPlayer?.name} attacks ${boss.name} for ${damage} damage!`, ...prev.slice(0, 4)])
-
-    setTimeout(() => {
-      // Boss counterattack
-      const bossTarget = players[Math.floor(Math.random() * players.length)]
-      const bossDamage = Math.floor(Math.random() * 15) + 5
-
-      setPlayers((prev) =>
-        prev.map((p) => (p.id === bossTarget.id ? { ...p, health: Math.max(0, p.health - bossDamage) } : p)),
-      )
-
-      setBattleLog((prevLog) => [
-        `${boss.name} strikes ${bossTarget.name} for ${bossDamage} damage!`,
-        ...prevLog.slice(0, 4),
-      ])
-
-      setIsAttacking(false)
-    }, 500)
-  }
-
-  const handleHeal = () => {
-    const heal = Math.floor(Math.random() * 20) + 10
-    setPlayers((prev) => prev.map((p) => (p.isUser ? { ...p, health: Math.min(p.maxHealth, p.health + heal) } : p)))
-    setBattleLog((prev) => [`You healed for ${heal} HP!`, ...prev.slice(0, 4)])
-  }
+  // Combat status indicators
+  const isVictory = bossHp <= 0
+  const isDefeat = playerHp <= 0
 
   return (
-    <div className="min-h-screen bg-background p-4">
+    <div className="min-h-screen bg-zinc-950 p-4 font-sans text-zinc-200 selection:bg-amber-500/30 selection:text-white">
       <div className="max-w-7xl mx-auto space-y-4">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Leave Battle
-        </button>
+        {/* Top Header Row */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 text-zinc-400 hover:text-zinc-100 transition-colors text-sm font-semibold group"
+          >
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            Leave Battle
+          </button>
+          <div className="bg-zinc-900/80 border border-zinc-800/80 px-3 py-1 rounded-full text-xs text-zinc-400 font-medium">
+            Game Mode: <span className="text-zinc-200 font-bold">{gameMode?.toUpperCase() || "PVE"}</span> | Companion: <span className="text-zinc-200 font-bold">{companionType?.toUpperCase() || "AI"}</span>
+          </div>
+        </div>
 
-        <div className="flex flex-col lg:flex-row gap-4">
-          {/* Player List */}
-          <Card className="lg:w-64 border-border bg-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg text-foreground">Party</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                {companionType === "ai" ? "AI Companions" : "Other Players"} - {gameMode?.toUpperCase()}
-              </p>
+        {/* HUD Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          
+          {/* Column 1: WoW-style Party Frames */}
+          <Card className="lg:col-span-1 border-zinc-800 bg-zinc-900/70 backdrop-blur shadow-xl h-fit">
+            <CardHeader className="pb-2 border-b border-zinc-800/60">
+              <CardTitle className="text-base text-zinc-200 tracking-wider font-extrabold uppercase flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                Dungeon Party
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {players.map((player) => {
-                const Icon = classIcons[player.class] || Shield
+            <CardContent className="p-3 space-y-2.5">
+              {party.map((member) => {
+                const Icon = classIcons[member.class] || Shield
+                const isSelected = selectedTarget?.id === member.id
+                const isUserMember = member.id === "user"
+                const hpPercent = (member.health / member.maxHealth) * 100
+                
+                // Determine resource display
+                let currentRes = 0
+                let maxRes = 100
+                let resColor = "bg-blue-500"
+                if (member.class === "warrior") {
+                  currentRes = member.resources.rage
+                  maxRes = member.maxResources.rage
+                  resColor = "bg-red-500"
+                } else if (member.class === "rogue") {
+                  currentRes = member.resources.energy
+                  maxRes = member.maxResources.energy
+                  resColor = "bg-yellow-500"
+                } else if (member.class === "hunter") {
+                  currentRes = member.resources.focus
+                  maxRes = member.maxResources.focus
+                  resColor = "bg-green-600"
+                } else {
+                  currentRes = member.resources.mana
+                  maxRes = member.maxResources.mana
+                  resColor = "bg-blue-500"
+                }
+                const resPercent = (currentRes / maxRes) * 100
+
                 return (
-                  <div
-                    key={player.id}
+                  <button
+                    key={member.id}
+                    onClick={() => {
+                      player.target = member
+                      setSelectedTarget(member)
+                    }}
                     className={cn(
-                      "flex items-center gap-3 p-2 rounded-lg",
-                      player.isUser ? "bg-primary/20 border border-primary/30" : "bg-secondary/50",
+                      "w-full flex items-center gap-3 p-2 rounded-lg text-left transition-all relative border overflow-hidden",
+                      isSelected 
+                        ? "bg-amber-500/15 border-amber-500/50 shadow-md" 
+                        : isUserMember
+                          ? "bg-zinc-800/50 border-zinc-700/60 hover:bg-zinc-800"
+                          : "bg-zinc-950/40 border-zinc-800/40 hover:bg-zinc-900/40",
+                      member.health <= 0 ? "opacity-50" : ""
                     )}
                   >
-                    <div className="relative">
-                      <Circle
-                        className={cn("w-8 h-8", player.health > 0 ? "text-muted-foreground" : "text-destructive")}
-                      />
-                      <Icon className={cn("w-4 h-4 absolute top-2 left-2", classColors[player.class])} />
+                    {/* Class Icon */}
+                    <div className="relative flex-shrink-0">
+                      <div className={cn(
+                        "w-8 h-8 rounded-full bg-zinc-900/90 border border-zinc-700 flex items-center justify-center shadow",
+                        member.health <= 0 ? "border-red-500/50" : ""
+                      )}>
+                        <Icon className={cn("w-4 h-4", classColors[member.class])} />
+                      </div>
+                      {isUserMember && (
+                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 text-[8px] font-black rounded-full flex items-center justify-center text-zinc-950 border border-zinc-950">
+                          YOU
+                        </span>
+                      )}
                     </div>
+
+                    {/* Unit Info */}
                     <div className="flex-1 min-w-0">
-                      <p
-                        className={cn(
-                          "text-sm font-medium truncate",
-                          player.isUser ? "text-primary" : "text-foreground",
-                        )}
-                      >
-                        {player.name}
-                      </p>
-                      <div className="w-full bg-secondary rounded-full h-1.5 mt-1">
+                      <div className="flex items-center justify-between">
+                        <p className={cn(
+                          "text-xs font-bold truncate",
+                          isUserMember ? "text-amber-400" : "text-zinc-200"
+                        )}>
+                          {member.name}
+                        </p>
+                        <span className="text-[10px] text-zinc-400 font-mono">
+                          {member.health <= 0 ? "DEAD" : `${member.health} HP`}
+                        </span>
+                      </div>
+
+                      {/* HP Bar */}
+                      <div className="w-full bg-zinc-950 rounded-full h-2 mt-1 border border-zinc-800/50">
                         <div
-                          className="bg-emerald-500 h-1.5 rounded-full transition-all"
-                          style={{ width: `${(player.health / player.maxHealth) * 100}%` }}
+                          className="bg-emerald-500 h-full rounded-full transition-all duration-150"
+                          style={{ width: `${hpPercent}%` }}
                         />
                       </div>
+
+                      {/* Resource Bar (Mana/Energy/Rage/Focus) */}
+                      {member.health > 0 && maxRes > 0 && (
+                        <div className="w-full bg-zinc-950 rounded-full h-1 mt-0.5 border border-zinc-800/30">
+                          <div
+                            className={cn(resColor, "h-full rounded-full transition-all duration-150")}
+                            style={{ width: `${resPercent}%` }}
+                          />
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  </button>
                 )
               })}
             </CardContent>
           </Card>
 
-          {/* Game Canvas */}
-          <Card className="flex-1 border-border bg-card overflow-hidden">
-            <CardContent className="p-0">
-              <canvas ref={canvasRef} width={650} height={500} className="w-full h-auto bg-card" />
-            </CardContent>
-          </Card>
+          {/* Column 2 & 3: Main 3D Game Canvas Area */}
+          <div className="lg:col-span-2 space-y-4">
+            
+            {/* 3D Game Scene */}
+            <ArenaCanvasContainer 
+              simulation={simulation} 
+              onSelectTarget={(actor) => setSelectedTarget(actor)} 
+            />
 
-          {/* Battle Info */}
-          <div className="lg:w-64 space-y-4">
-            {/* Boss Health */}
-            <Card className="border-destructive/30 bg-card">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg text-destructive">{boss.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">HP</span>
-                    <span className="text-foreground">
-                      {boss.health}/{boss.maxHealth}
-                    </span>
-                  </div>
-                  <div className="w-full bg-secondary rounded-full h-3">
-                    <div
-                      className="bg-destructive h-3 rounded-full transition-all"
-                      style={{ width: `${(boss.health / boss.maxHealth) * 100}%` }}
-                    />
-                  </div>
+            {/* Dynamic Real-time Cast Bar overlay */}
+            {player.isCasting && (
+              <div className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2 flex flex-col items-center justify-center relative shadow-lg overflow-hidden">
+                <div className="absolute top-0 left-0 bottom-0 bg-yellow-500/10 transition-all duration-75" style={{ width: `${(1 - player.castTimeRemaining / player.castTimeTotal) * 100}%` }} />
+                <span className="text-xs font-black tracking-wider uppercase text-yellow-300 z-10 flex items-center gap-1.5 animate-pulse">
+                  <Flame className="w-3.5 h-3.5" />
+                  Casting: {player.castName} ({player.castTimeRemaining.toFixed(1)}s)
+                </span>
+                <div className="w-full bg-zinc-950 h-2 rounded mt-1.5 border border-zinc-800 relative z-10 overflow-hidden">
+                  <div 
+                    className="h-full bg-yellow-500 transition-all duration-100"
+                    style={{ width: `${(1 - player.castTimeRemaining / player.castTimeTotal) * 100}%` }}
+                  />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            )}
 
-            {/* Actions */}
-            <Card className="border-border bg-card">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg text-foreground">Actions</CardTitle>
+            {/* World of Warcraft-style Action bar */}
+            <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-4 flex flex-col items-center gap-3 shadow-xl backdrop-blur">
+              <div className="text-[10px] uppercase font-bold text-zinc-500 tracking-widest border-b border-zinc-800/60 pb-1 w-full text-center">
+                Spells & Abilities
+              </div>
+              <div className="flex gap-4 items-center justify-center">
+                {playerAbilities.map((ability, idx) => {
+                  const Icon = abilityIcons[ability.icon] || Shield
+                  const remainingCD = cooldowns[ability.id] || 0
+                  const isAvailable = remainingCD <= 0 && gcdRemaining <= 0
+                  const hasResource = player.currentResource(ability.cost.resource) >= ability.cost.amount
+                  
+                  // Radial sweep timer percentage
+                  const isSweep = !isAvailable
+                  let sweepPct = 0
+                  if (remainingCD > 0) {
+                    sweepPct = (remainingCD / ability.cooldown) * 100
+                  } else if (gcdRemaining > 0) {
+                    sweepPct = (gcdRemaining / 1.5) * 100
+                  }
+
+                  return (
+                    <div key={ability.id} className="flex flex-col items-center gap-1.5">
+                      <button
+                        onClick={() => castAbility(ability)}
+                        disabled={player.health <= 0 || boss.health <= 0}
+                        className={cn(
+                          "w-14 h-14 rounded-xl relative border-2 flex items-center justify-center group transition-all duration-300 shadow-md",
+                          isAvailable && hasResource
+                            ? "bg-zinc-950 border-amber-500/30 hover:border-amber-400 hover:scale-105 active:scale-95"
+                            : "bg-zinc-950/80 border-zinc-800 brightness-75 grayscale-[40%]",
+                          !hasResource ? "border-red-500/40" : ""
+                        )}
+                      >
+                        {/* Cooldown radial overlay */}
+                        {isSweep && (
+                          <div 
+                            className="absolute inset-0 bg-black/75 rounded-[10px] flex items-center justify-center text-xs font-black text-amber-400 z-20"
+                          >
+                            {remainingCD > 0 ? remainingCD.toFixed(1) : ""}
+                          </div>
+                        )}
+
+                        {/* Ability Icon */}
+                        <Icon className={cn("w-6 h-6", isAvailable && hasResource ? "text-amber-400" : "text-zinc-500")} />
+
+                        {/* Hotkey tag */}
+                        <span className="absolute -top-2 -right-2 bg-zinc-800 border border-zinc-700 font-mono text-[9px] px-1 py-0.5 rounded-md text-zinc-400 group-hover:text-zinc-200 transition-colors z-30 shadow">
+                          {idx + 1}
+                        </span>
+
+                        {/* Resource dot */}
+                        {!hasResource && (
+                          <div className="absolute top-1 left-1 w-2 h-2 rounded-full bg-red-500 animate-ping z-30" />
+                        )}
+                      </button>
+
+                      {/* Spell Details */}
+                      <span className="text-[10px] font-bold text-zinc-400 truncate max-w-[80px]">
+                        {ability.name}
+                      </span>
+                      <span className="text-[8px] text-zinc-500 font-mono">
+                        {ability.cost.amount > 0 ? `${ability.cost.amount} ${ability.cost.resource}` : "FREE"}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+          </div>
+
+          {/* Column 4: Boss Frame & Battle Info & Log */}
+          <div className="lg:col-span-1 space-y-4">
+            
+            {/* Target/Boss Frame */}
+            <Card className="border-red-950/50 bg-zinc-900/60 backdrop-blur shadow-xl">
+              <CardHeader className="pb-2 border-b border-zinc-800/60 bg-red-950/10">
+                <CardTitle className="text-sm font-extrabold text-red-500 uppercase tracking-wider flex items-center gap-2">
+                  <Skull className="w-4 h-4 text-red-500" />
+                  Target Unit
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <Button
-                  onClick={handleAttack}
-                  disabled={isAttacking || boss.health <= 0}
-                  className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Attack
-                </Button>
-                <Button
-                  onClick={handleHeal}
-                  variant="outline"
-                  className="w-full border-emerald-500 text-emerald-500 hover:bg-emerald-500/10 bg-transparent"
-                >
-                  Heal
-                </Button>
+              <CardContent className="p-3">
+                {selectedTarget ? (
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="text-xs font-bold text-zinc-200">{selectedTarget.name}</h4>
+                        <p className="text-[10px] text-zinc-500 uppercase tracking-wide">
+                          Class: <span className={cn(classColors[selectedTarget.class], "font-bold")}>{selectedTarget.class}</span>
+                        </p>
+                      </div>
+                      <span className={cn(
+                        "text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border border-white/5",
+                        selectedTarget.faction === "enemy" ? "bg-red-500/10 text-red-400" : "bg-emerald-500/10 text-emerald-400"
+                      )}>
+                        {selectedTarget.faction}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-[11px] font-mono">
+                        <span className="text-zinc-400">Health</span>
+                        <span className="text-zinc-200 font-bold">
+                          {selectedTarget.health} / {selectedTarget.maxHealth}
+                        </span>
+                      </div>
+                      {/* Health Bar */}
+                      <div className="w-full bg-zinc-950 rounded-full h-3 border border-zinc-800/50 overflow-hidden">
+                        <div
+                          className="bg-red-500 h-full rounded-full transition-all duration-100"
+                          style={{ width: `${(selectedTarget.health / selectedTarget.maxHealth) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Threat / Aggro Map if Boss */}
+                    {selectedTarget.class === "boss" && (
+                      <div className="bg-zinc-950/80 border border-zinc-800/40 p-2 rounded text-[10px] space-y-1">
+                        <span className="font-bold text-zinc-400 text-[9px] uppercase tracking-wider">Threat List:</span>
+                        {Array.from(selectedTarget.threatMap.entries())
+                          .sort((a, b) => b[1] - a[1])
+                          .slice(0, 3)
+                          .map(([actorId, threat]) => {
+                            const act = simulation.actors.find(a => a.id === actorId)
+                            return (
+                              <div key={actorId} className="flex justify-between font-mono text-zinc-500">
+                                <span className={act?.isUser ? "text-amber-400 font-bold" : ""}>{act?.name || "Target"}</span>
+                                <span>{Math.floor(threat)}</span>
+                              </div>
+                            )
+                          })
+                        }
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-xs text-zinc-500 font-medium">
+                    No Target Selected
+                    <p className="text-[9px] text-zinc-600 mt-1">Click a gladiator or press Tab to lock target</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
             {/* Battle Log */}
-            <Card className="border-border bg-card">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg text-foreground">Battle Log</CardTitle>
+            <Card className="border-zinc-800 bg-zinc-900/70 backdrop-blur shadow-xl h-[280px] flex flex-col overflow-hidden">
+              <CardHeader className="pb-1.5 border-b border-zinc-800/60 flex-shrink-0">
+                <CardTitle className="text-xs font-extrabold uppercase tracking-widest text-zinc-400">Combat Feed</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-1 max-h-40 overflow-y-auto">
-                  {battleLog.map((log, i) => (
-                    <p key={i} className={cn("text-xs", i === 0 ? "text-foreground" : "text-muted-foreground")}>
+              <CardContent className="p-3 flex-1 overflow-y-auto font-mono text-[10px] space-y-1.5 selection:bg-amber-500/20">
+                {battleLog.length === 0 ? (
+                  <p className="text-zinc-600 italic">Listening for actions...</p>
+                ) : (
+                  battleLog.map((log, i) => (
+                    <p 
+                      key={i} 
+                      className={cn(
+                        "leading-relaxed transition-opacity duration-150 border-l pl-1.5 border-zinc-800",
+                        i === 0 ? "text-zinc-100 font-bold" : "text-zinc-500"
+                      )}
+                    >
                       {log}
                     </p>
-                  ))}
-                </div>
+                  ))
+                )}
               </CardContent>
             </Card>
           </div>
+
         </div>
 
-        {boss.health <= 0 && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
-            <Card className="border-primary bg-card text-center p-8">
-              <h2 className="text-3xl font-bold text-primary mb-4">Victory!</h2>
-              <p className="text-muted-foreground mb-6">You have defeated {boss.name}!</p>
-              <Button onClick={onBack} className="bg-primary text-primary-foreground">
-                Return to Menu
-              </Button>
+        {/* Victory Screen */}
+        {isVictory && (
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 animate-fade-in">
+            <Card className="border-yellow-500/40 bg-zinc-900 text-center p-8 max-w-md w-full mx-4 shadow-2xl relative overflow-hidden">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-yellow-500 to-amber-600 rounded-lg blur opacity-10 animate-pulse" />
+              <div className="relative">
+                <div className="w-16 h-16 bg-yellow-500/20 text-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-yellow-500/40 shadow-inner">
+                  <Sun className="w-8 h-8 animate-spin" />
+                </div>
+                <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-amber-500 mb-2 tracking-widest uppercase">
+                  Victory!
+                </h2>
+                <p className="text-zinc-400 text-sm mb-6">
+                  You and your companions have triumphed and defeated <span className="text-red-400 font-bold">{boss.name}</span>!
+                </p>
+                <Button onClick={onBack} className="w-full bg-yellow-500 hover:bg-yellow-400 text-zinc-950 font-extrabold tracking-wider uppercase transition-colors">
+                  Return to Menu
+                </Button>
+              </div>
             </Card>
           </div>
         )}
+
+        {/* Defeat Screen */}
+        {isDefeat && (
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-50 animate-fade-in">
+            <Card className="border-red-950 bg-zinc-900 text-center p-8 max-w-md w-full mx-4 shadow-2xl relative overflow-hidden">
+              <div className="relative">
+                <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-900/40">
+                  <Skull className="w-8 h-8" />
+                </div>
+                <h2 className="text-3xl font-black text-red-600 mb-2 tracking-widest uppercase">
+                  Defeated
+                </h2>
+                <p className="text-zinc-400 text-sm mb-6">
+                  The arena claimed your life. Heal your wounds and try again!
+                </p>
+                <Button onClick={onBack} className="w-full bg-red-600 hover:bg-red-500 text-white font-extrabold tracking-wider uppercase transition-colors">
+                  Release Spirit
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
+
       </div>
     </div>
   )

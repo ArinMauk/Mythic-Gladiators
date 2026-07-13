@@ -358,6 +358,40 @@ classDiagram
   CombatSimulation_Heap --> Boss_Actor : bossActor
   Player_Actor --> Boss_Actor : target
   Boss_Actor --> Player_Actor : target
+  CombatSimulation_Heap --> Player_Actor : playerActor
+  CombatSimulation_Heap --> Boss_Actor : bossActor
+  Player_Actor --> Boss_Actor : target
+  Boss_Actor --> Player_Actor : target
   CombatSimulation_Heap --> Fireball_Projectile : projectiles[0]
   Fireball_Projectile --> Boss_Actor : target
 ```
+
+---
+
+## 4. Key Fixes & Optimizations
+
+This section documents critical bug resolutions and performance optimizations applied during the integration of React Three Fiber and the combat loop.
+
+### A. R3F Position Synchronization & Unfrozen Mesh Fix
+* **The Bug:** Originally, actor meshes were rendered as `<group position={actor.position}>` in JSX. Since the JS game loop mutates `actor.position` (a `THREE.Vector3` object) in-place at 60 FPS, its reference never changes. React Three Fiber's virtual DOM reconciliation does not deep dirty-check objects with unchanged references, causing the player and boss meshes to stay completely frozen visually at their spawning coordinates `(0, 0, 15)` and `(0, 0, -15)`, even though coordinates updated in the simulation.
+* **The Fix:** We bypassed React's Virtual DOM prop comparison completely. We added a `groupRef` to `ActorMesh` and copy the simulation coordinates directly into the group's position inside the high-performance R3F animation tick (`useFrame`):
+  ```typescript
+  useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.position.copy(actor.position);
+    }
+  });
+  ```
+  This immediately resolved coordinate locking, syncing character meshes to the camera and movement vectors.
+
+### B. Projectile Spawn (0, 0, 0) & Torso Target Offsets
+* **First-Frame Spawn Bug:** Rendering projectiles as `<mesh ref={meshRef}>` without an initial `position` prop caused R3F to spawn the Three.js mesh at the world center `(0, 0, 0)` for a single frame before its position was copied in `useFrame`, creating a visible coordinate jump. We resolved this by explicitly passing the position prop in JSX: `<mesh ref={meshRef} position={proj.position}>`.
+* **Torso Targeting height:** Standard characters have a capsule size of 1.0, while the Evil Raid Boss has a scale size multiplier of 2.5. Projectiles now aim dynamically based on the target class (`this.target.class === "boss" ? 2.5 : 1.0`) to fly straight into the boss's torso instead of its feet.
+
+### C. Active Cast Orientation Lock
+* **The Improvement:** When casting a spell (like Smite or Fireball), standard RPG gameplay expects the character to orient themselves toward the target. In the `Actor` update loop, we now dynamically lock the actor's yaw angle to face their target on every frame tick while `isCasting` is active:
+  ```typescript
+  if (this.isCasting && this.target) {
+    this.yaw = Math.atan2(this.target.position.x - this.position.x, this.target.position.z - this.position.z);
+  }
+  ```

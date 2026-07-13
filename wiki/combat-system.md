@@ -237,17 +237,8 @@ classDiagram
   Actor "1" o-- "0..1" Actor : target
   Actor "1" o-- "many" Ability : classAbilities
 
-  Ability <|-- MortalStrike
-  Ability <|-- Smite
-  Ability <|-- FlashHeal
-  Ability <|-- SteadyShot
-  Ability <|-- SinisterStrike
-  Ability <|-- Fireball
-  Ability <|-- ShadowBolt
-  Ability <|-- Judgment
-  Ability <|-- LightningBolt
-  Ability <|-- BossSmash
-  Ability <|-- BossFireRain
+  Ability <|-- CustomAbility
+  CustomAbility "1" o-- "1" AbilityExecutor : delegates execute
 
   Projectile "1" o-- "1" Actor : target
 
@@ -298,6 +289,17 @@ classDiagram
     +canCast(caster, target)
     +startCast(caster, target, simulation)
     +execute(caster, target, simulation)*
+  }
+
+  class CustomAbility {
+    +string id
+    +string name
+    +string icon
+    +number castTime
+    +number cooldown
+    +number range
+    +SkillCost cost
+    +execute(caster, target, simulation)
   }
 
   class Projectile {
@@ -368,7 +370,33 @@ classDiagram
 
 ---
 
-## 4. Key Fixes & Optimizations
+## 4. Architectural Reorganization & JSON Decoupling
+
+In the latest refactoring, the combat system was restructured to decouple static game data from runtime TypeScript classes and separate specific spell execution behaviors into modular, class-grouped files.
+
+### A. JSON Data Gating
+* **`classes.json`**: Hydrates actor properties. Standardizes armor formula ratios, speed settings (e.g. Rogue at `7.5` vs others at `6.0`), base health pools, and starting resource metrics (e.g. energy/focus at `100` vs rage at `0`).
+* **`abilities.json`**: Completely decouples stats for all 18 abilities including cast times, ranges, cooldown timers, resource costs, and targeting flags.
+* **`enemies.json`**: Manages party compositions and level scenarios dynamically. Completely removed hardcoded collections of companions (Bob, Jessica, Dillan, Sarah) and specific trial bosses (Evil Raid Boss, Gladiator skirmish gladiators) from engine code.
+
+### B. Modular Spell Executors
+Specific ability effects are exported as typed, modular `AbilityExecutor` functions inside `lib/combat/abilities/` (grouped by class, e.g. `warrior.ts`, `priest.ts`, etc.).
+A generic subclass `CustomAbility` inherits from `Ability`, dynamically loading its properties from `abilities.json` at runtime and delegating its `execute` callback to its respective executor:
+```typescript
+export class CustomAbility extends Ability {
+  execute(caster: Actor, target: Actor | null, simulation: any): void {
+    const executor = executors[this.id];
+    if (executor) {
+      executor(caster, target, simulation);
+    }
+  }
+}
+```
+This composition-based design replaces hundreds of lines of subclass boilerplate in `ability.ts` and simplifies spell testing, extensibility, and code condensation.
+
+---
+
+## 5. Key Fixes & Optimizations
 
 This section documents critical bug resolutions and performance optimizations applied during the integration of React Three Fiber and the combat loop.
 

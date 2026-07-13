@@ -1,0 +1,182 @@
+{
+  "mortal_strike": {
+    "name": "Mortal Strike",
+    "icon": "Shield",
+    "castTime": 0,
+    "cooldown": 6,
+    "range": 4,
+    "cost": { "resource": "rage", "amount": 30 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "charge": {
+    "name": "Charge",
+    "icon": "Activity",
+    "castTime": 0,
+    "cooldown": 12,
+    "range": 25,
+    "cost": { "resource": "rage", "amount": 0 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "smite": {
+    "name": "Smite",
+    "icon": "Sun",
+    "castTime": 1.5,
+    "cooldown": 0,
+    "range": 40,
+    "cost": { "resource": "mana", "amount": 40 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "flash_heal": {
+    "name": "Flash Heal",
+    "icon": "Heart",
+    "castTime": 1.5,
+    "cooldown": 0,
+    "range": 40,
+    "cost": { "resource": "mana", "amount": 80 },
+    "requiresTarget": true,
+    "requiresHostile": false
+  },
+  "steady_shot": {
+    "name": "Steady Shot",
+    "icon": "Target",
+    "castTime": 1.5,
+    "cooldown": 0,
+    "range": 40,
+    "cost": { "resource": "focus", "amount": 0 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "arcane_shot": {
+    "name": "Arcane Shot",
+    "icon": "Sparkles",
+    "castTime": 0,
+    "cooldown": 0,
+    "range": 40,
+    "cost": { "resource": "focus", "amount": 30 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "sinister_strike": {
+    "name": "Sinister Strike",
+    "icon": "Sword",
+    "castTime": 0,
+    "cooldown": 0,
+    "range": 4,
+    "cost": { "resource": "energy", "amount": 40 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "eviscerate": {
+    "name": "Eviscerate",
+    "icon": "Skull",
+    "castTime": 0,
+    "cooldown": 0,
+    "range": 4,
+    "cost": { "resource": "energy", "amount": 35 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "fireball": {
+    "name": "Fireball",
+    "icon": "Flame",
+    "castTime": 2.0,
+    "cooldown": 0,
+    "range": 40,
+    "cost": { "resource": "mana", "amount": 100 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "blink": {
+    "name": "Blink",
+    "icon": "Wind",
+    "castTime": 0,
+    "cooldown": 15,
+    "range": 15,
+    "cost": { "resource": "mana", "amount": 50 },
+    "requiresTarget": false,
+    "requiresHostile": false
+  },
+  "shadow_bolt": {
+    "name": "Shadow Bolt",
+    "icon": "Moon",
+    "castTime": 2.0,
+    "cooldown": 0,
+    "range": 40,
+    "cost": { "resource": "mana", "amount": 80 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "corruption": {
+    "name": "Corruption",
+    "icon": "Skull",
+    "castTime": 0,
+    "cooldown": 0,
+    "range": 40,
+    "cost": { "resource": "mana", "amount": 50 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "judgment": {
+    "name": "Judgment",
+    "icon": "Sun",
+    "castTime": 0,
+    "cooldown": 8,
+    "range": 30,
+    "cost": { "resource": "mana", "amount": 60 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "flash_of_light": {
+    "name": "Flash of Light",
+    "icon": "Heart",
+    "castTime": 1.5,
+    "cooldown": 0,
+    "range": 40,
+    "cost": { "resource": "mana", "amount": 70 },
+    "requiresTarget": true,
+    "requiresHostile": false
+  },
+  "lightning_bolt": {
+    "name": "Lightning Bolt",
+    "icon": "Zap",
+    "castTime": 2.0,
+    "cooldown": 0,
+    "range": 40,
+    "cost": { "resource": "mana", "amount": 70 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "healing_surge": {
+    "name": "Healing Surge",
+    "icon": "Droplet",
+    "castTime": 1.5,
+    "cooldown": 0,
+    "range": 40,
+    "cost": { "resource": "mana", "amount": 85 },
+    "requiresTarget": true,
+    "requiresHostile": false
+  },
+  "boss_smash": {
+    "name": "Boss Smash",
+    "icon": "Skull",
+    "castTime": 1.0,
+    "cooldown": 6,
+    "range": 6,
+    "cost": { "resource": "mana", "amount": 0 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "boss_fire_rain": {
+    "name": "Rain of Fire",
+    "icon": "Flame",
+    "castTime": 2.5,
+    "cooldown": 14,
+    "range": 50,
+    "cost": { "resource": "mana", "amount": 0 },
+    "requiresTarget": false,
+    "requiresHostile": false
+  }
+}

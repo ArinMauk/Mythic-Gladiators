@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { GameClass, Faction, Role, ResourceType, ActorStats } from "./types";
+import classesData from "./data/classes.json";
 
 export class Actor {
   id: string;
@@ -53,41 +54,29 @@ export class Actor {
     this.position = initialPos.clone();
     this.isUser = isUser;
 
-    // Set stats and max health/resource based on class and role
-    this.stats = {
-      speed: cls === "rogue" ? 7.5 : 6.0,
-      spellCrit: cls === "mage" || cls === "warlock" || cls === "hunter" ? 0.20 : 0.10,
-      armor: cls === "warrior" || cls === "paladin" ? 200 : 50,
-    };
-
-    if (cls === "boss") {
-      this.maxHealth = 1500;
-      this.health = 1500;
-    } else {
-      this.maxHealth = cls === "warrior" || cls === "paladin" ? 300 : 200;
-      this.health = this.maxHealth;
+    // Set stats and max health/resource based on class data
+    const classKey = cls.toLowerCase();
+    const classConf = (classesData as any)[classKey];
+    if (!classConf) {
+      throw new Error(`Class config not found for: ${cls}`);
     }
 
-    // Resources based on class
+    this.stats = {
+      speed: classConf.speed,
+      spellCrit: classConf.spellCrit,
+      armor: classConf.armor,
+    };
+
+    this.maxHealth = classConf.maxHealth;
+    this.health = this.maxHealth;
+
     this.resources = { mana: 0, energy: 0, rage: 0, focus: 0 };
     this.maxResources = { mana: 0, energy: 0, rage: 0, focus: 0 };
 
-    if (cls === "warrior") {
-      this.maxResources.rage = 100;
-      this.resources.rage = 0; // starts at 0 rage
-    } else if (cls === "rogue") {
-      this.maxResources.energy = 100;
-      this.resources.energy = 100; // starts at 100 energy
-    } else if (cls === "hunter") {
-      this.maxResources.focus = 100;
-      this.resources.focus = 100; // starts at 100 focus
-    } else if (cls === "boss") {
-      this.maxResources.mana = 1000;
-      this.resources.mana = 1000;
-    } else {
-      // mage, priest, warlock, paladin, shaman
-      this.maxResources.mana = 1000;
-      this.resources.mana = 1000; // starts at full mana
+    if (classConf.resourceType) {
+      const resType = classConf.resourceType as ResourceType;
+      this.maxResources[resType] = classConf.maxResource;
+      this.resources[resType] = classConf.initialResource;
     }
   }
 

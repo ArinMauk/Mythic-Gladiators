@@ -1,0 +1,23 @@
+{
+  "companions": [
+    { "id": "bob", "name": "Bob", "class": "warrior", "role": "tank", "pos": { "x": -10, "y": 0, "z": 12 } },
+    { "id": "jessica", "name": "Jessica", "class": "mage", "role": "damage", "pos": { "x": -15, "y": 0, "z": 15 } },
+    { "id": "dillan", "name": "Dillan", "class": "priest", "role": "healer", "pos": { "x": 10, "y": 0, "z": 15 } },
+    { "id": "sarah", "name": "Sarah", "class": "hunter", "role": "damage", "pos": { "x": 15, "y": 0, "z": 12 } }
+  ],
+  "levels": {
+    "level-1": {
+      "enemies": [
+        { "id": "boss", "name": "Evil Raid Boss", "class": "boss", "role": "tank", "pos": { "x": 0, "y": 0, "z": -15 } }
+      ]
+    },
+    "level-2": {
+      "enemies": [
+        { "id": "boss_captain", "name": "Gladiator Captain", "class": "boss", "role": "tank", "pos": { "x": 0, "y": 0, "z": -15 }, "maxHealth": 500 },
+        { "id": "gladiator_pyro", "name": "Gladiator Pyromancer", "class": "mage", "role": "damage", "pos": { "x": -8, "y": 0, "z": -12 } },
+        { "id": "gladiator_cleric", "name": "Gladiator Cleric", "class": "priest", "role": "healer", "pos": { "x": 8, "y": 0, "z": -12 } },
+        { "id": "gladiator_scout", "name": "Gladiator Scout", "class": "hunter", "role": "damage", "pos": { "x": 12, "y": 0, "z": -15 } }
+      ]
+    }
+  }
+}

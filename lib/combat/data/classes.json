@@ -1,0 +1,92 @@
+{
+  "warrior": {
+    "speed": 6.0,
+    "spellCrit": 0.10,
+    "armor": 200,
+    "maxHealth": 300,
+    "resourceType": "rage",
+    "maxResource": 100,
+    "initialResource": 0,
+    "abilities": ["mortal_strike", "charge"]
+  },
+  "priest": {
+    "speed": 6.0,
+    "spellCrit": 0.10,
+    "armor": 50,
+    "maxHealth": 200,
+    "resourceType": "mana",
+    "maxResource": 1000,
+    "initialResource": 1000,
+    "abilities": ["smite", "flash_heal"]
+  },
+  "hunter": {
+    "speed": 6.0,
+    "spellCrit": 0.20,
+    "armor": 50,
+    "maxHealth": 200,
+    "resourceType": "focus",
+    "maxResource": 100,
+    "initialResource": 100,
+    "abilities": ["steady_shot", "arcane_shot"]
+  },
+  "rogue": {
+    "speed": 7.5,
+    "spellCrit": 0.10,
+    "armor": 50,
+    "maxHealth": 200,
+    "resourceType": "energy",
+    "maxResource": 100,
+    "initialResource": 100,
+    "abilities": ["sinister_strike", "eviscerate"]
+  },
+  "mage": {
+    "speed": 6.0,
+    "spellCrit": 0.20,
+    "armor": 50,
+    "maxHealth": 200,
+    "resourceType": "mana",
+    "maxResource": 1000,
+    "initialResource": 1000,
+    "abilities": ["fireball", "blink"]
+  },
+  "warlock": {
+    "speed": 6.0,
+    "spellCrit": 0.20,
+    "armor": 50,
+    "maxHealth": 200,
+    "resourceType": "mana",
+    "maxResource": 1000,
+    "initialResource": 1000,
+    "abilities": ["shadow_bolt", "corruption"]
+  },
+  "paladin": {
+    "speed": 6.0,
+    "spellCrit": 0.10,
+    "armor": 200,
+    "maxHealth": 300,
+    "resourceType": "mana",
+    "maxResource": 1000,
+    "initialResource": 1000,
+    "abilities": ["judgment", "flash_of_light"]
+  },
+  "shaman": {
+    "speed": 6.0,
+    "spellCrit": 0.10,
+    "armor": 50,
+    "maxHealth": 200,
+    "resourceType": "mana",
+    "maxResource": 1000,
+    "initialResource": 1000,
+    "abilities": ["lightning_bolt", "healing_surge"]
+  },
+  "boss": {
+    "speed": 6.0,
+    "spellCrit": 0.10,
+    "armor": 50,
+    "maxHealth": 1500,
+    "resourceType": "mana",
+    "maxResource": 1000,
+    "initialResource": 1000,
+    "abilities": ["boss_smash", "boss_fire_rain"]
+  }
+}

@@ -3,6 +3,7 @@ import { Actor } from "./actor";
 import { Projectile } from "./projectile";
 import { GameClass, Faction, Role, VisualEffect, FloatingText } from "./types";
 import { getClassAbilities, Ability } from "./ability";
+import enemiesData from "./data/enemies.json";
 
 export interface DangerZone {
   id: string;
@@ -44,20 +45,11 @@ export class CombatSimulation {
     );
     this.actors.push(this.playerActor);
 
-    // 2. Initialize Companions (Bob, Jessica, Dillan, Sarah)
-    const companions = [
-      { id: "bob", name: "Bob", class: "warrior" as const, role: "tank" as const, pos: new THREE.Vector3(-10, 0, 12) },
-      { id: "jessica", name: "Jessica", class: "mage" as const, role: "damage" as const, pos: new THREE.Vector3(-15, 0, 15) },
-      { id: "dillan", name: "Dillan", class: "priest" as const, role: "healer" as const, pos: new THREE.Vector3(10, 0, 15) },
-      { id: "sarah", name: "Sarah", class: "hunter" as const, role: "damage" as const, pos: new THREE.Vector3(15, 0, 12) },
-    ];
-
-    // Filter out companions if their class matches the user's class, or just keep them to make a robust party of 5!
-    // A standard WoW party has 5 members, so we keep all 4 companions + user.
-    companions.forEach((comp) => {
+    // 2. Initialize Companions from enemies.json
+    enemiesData.companions.forEach((comp) => {
       // If user is playing a priest, we can swap Dillan's class to shaman, or warrior to paladin, to have a nice diverse party
-      let finalClass: GameClass = comp.class;
-      let finalRole: Role = comp.role;
+      let finalClass: GameClass = comp.class as GameClass;
+      let finalRole: Role = comp.role as Role;
       if (comp.class === playerClass) {
         if (playerClass === "priest") {
           finalClass = "shaman";
@@ -73,48 +65,44 @@ export class CombatSimulation {
           finalRole = "damage";
         }
       }
-      this.actors.push(new Actor(comp.id, comp.name, finalClass, "player", finalRole, comp.pos, false));
+      const initialPos = new THREE.Vector3(comp.pos.x, comp.pos.y, comp.pos.z);
+      this.actors.push(new Actor(comp.id, comp.name, finalClass, "player", finalRole, initialPos, false));
     });
 
-    // 3. Initialize Enemies based on selectedLevel
-    if (selectedLevel === "level-1") {
-      this.bossActor = new Actor(
-        "boss", 
-        "Evil Raid Boss", 
-        "boss", 
-        "enemy", 
-        "tank", 
-        new THREE.Vector3(0, 0, -15), 
-        false
-      );
-      this.actors.push(this.bossActor);
-    } else {
-      // Level 2: 4v4 team skirmish
-      // Gladiator Captain acts as the "bossActor" (Warrior/Boss class, 500 maxHealth)
-      this.bossActor = new Actor(
-        "boss_captain", 
-        "Gladiator Captain", 
-        "boss", 
-        "enemy", 
-        "tank", 
-        new THREE.Vector3(0, 0, -15), 
-        false
-      );
-      this.bossActor.maxHealth = 500;
-      this.bossActor.health = 500;
-      this.actors.push(this.bossActor);
+    // 3. Initialize Enemies based on selectedLevel from enemies.json
+    const levelConf = (enemiesData.levels as any)[selectedLevel];
+    if (!levelConf || !levelConf.enemies || levelConf.enemies.length === 0) {
+      throw new Error(`Enemies configuration not found for level: ${selectedLevel}`);
+    }
 
-      // Now add 3 additional distinct enemy gladiators
-      const enemyGladiators = [
-        { id: "gladiator_pyro", name: "Gladiator Pyromancer", class: "mage" as const, role: "damage" as const, pos: new THREE.Vector3(-8, 0, -12) },
-        { id: "gladiator_cleric", name: "Gladiator Cleric", class: "priest" as const, role: "healer" as const, pos: new THREE.Vector3(8, 0, -12) },
-        { id: "gladiator_scout", name: "Gladiator Scout", class: "hunter" as const, role: "damage" as const, pos: new THREE.Vector3(12, 0, -15) },
-      ];
+    // Set first enemy as bossActor
+    const firstEnemy = levelConf.enemies[0];
+    const bossPos = new THREE.Vector3(firstEnemy.pos.x, firstEnemy.pos.y, firstEnemy.pos.z);
+    this.bossActor = new Actor(
+      firstEnemy.id,
+      firstEnemy.name,
+      firstEnemy.class as GameClass,
+      "enemy",
+      firstEnemy.role as Role,
+      bossPos,
+      false
+    );
+    if (firstEnemy.maxHealth) {
+      this.bossActor.maxHealth = firstEnemy.maxHealth;
+      this.bossActor.health = firstEnemy.maxHealth;
+    }
+    this.actors.push(this.bossActor);
 
-      enemyGladiators.forEach((enemy) => {
-        const actor = new Actor(enemy.id, enemy.name, enemy.class, "enemy", enemy.role, enemy.pos, false);
-        this.actors.push(actor);
-      });
+    // Add any remaining enemies
+    for (let i = 1; i < levelConf.enemies.length; i++) {
+      const enemy = levelConf.enemies[i];
+      const pos = new THREE.Vector3(enemy.pos.x, enemy.pos.y, enemy.pos.z);
+      const actor = new Actor(enemy.id, enemy.name, enemy.class as GameClass, "enemy", enemy.role as Role, pos, false);
+      if (enemy.maxHealth) {
+        actor.maxHealth = enemy.maxHealth;
+        actor.health = enemy.maxHealth;
+      }
+      this.actors.push(actor);
     }
 
     // Set Initial Targets

@@ -5,9 +5,10 @@ import { LoginScreen } from "./login-screen"
 import { SignupScreen } from "./signup-screen"
 import { GameTypeScreen } from "./game-type-screen"
 import { ClassSelectionScreen } from "./class-selection-screen"
+import { LevelSelectionScreen } from "./level-selection-screen"
 import { GameArenaScreen } from "./game-arena-screen"
 
-type Screen = "login" | "signup" | "game-type" | "class-selection" | "game"
+type Screen = "login" | "signup" | "game-type" | "class-selection" | "level-selection" | "game"
 
 export function GameFlow() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("login")
@@ -22,6 +23,9 @@ export function GameFlow() {
         setCurrentScreen("class-selection")
         break
       case "class-selection":
+        setCurrentScreen("level-selection")
+        break
+      case "level-selection":
         setCurrentScreen("game")
         break
     }
@@ -38,8 +42,11 @@ export function GameFlow() {
       case "class-selection":
         setCurrentScreen("game-type")
         break
-      case "game":
+      case "level-selection":
         setCurrentScreen("class-selection")
+        break
+      case "game":
+        setCurrentScreen("level-selection")
         break
     }
   }
@@ -54,6 +61,7 @@ export function GameFlow() {
       {currentScreen === "signup" && <SignupScreen onNext={handleNext} onBack={handleBack} />}
       {currentScreen === "game-type" && <GameTypeScreen onNext={handleNext} onBack={handleBack} />}
       {currentScreen === "class-selection" && <ClassSelectionScreen onNext={handleNext} onBack={handleBack} />}
+      {currentScreen === "level-selection" && <LevelSelectionScreen onNext={handleNext} onBack={handleBack} />}
       {currentScreen === "game" && <GameArenaScreen onBack={handleBack} />}
     </main>
   )

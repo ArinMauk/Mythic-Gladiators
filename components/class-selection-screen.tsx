@@ -173,7 +173,7 @@ export function ClassSelectionScreen({ onNext, onBack }: ClassSelectionScreenPro
           disabled={!selectedClass}
           className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold tracking-wide disabled:opacity-50"
         >
-          Enter Battle
+          Choose Your Level
         </Button>
       </div>
     </div>

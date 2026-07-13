@@ -5,16 +5,19 @@ import { createContext, useContext, useState, type ReactNode } from "react"
 type CompanionType = "ai" | "players"
 type GameMode = "pvp" | "pve"
 type GameClass = "warrior" | "priest" | "hunter" | "rogue" | "mage" | "warlock" | "paladin" | "shaman"
+export type LevelId = "level-1" | "level-2"
 
 interface GameState {
   username: string
   companionType: CompanionType | null
   gameMode: GameMode | null
   selectedClass: GameClass | null
+  selectedLevel: LevelId
   setUsername: (name: string) => void
   setCompanionType: (type: CompanionType) => void
   setGameMode: (mode: GameMode) => void
   setSelectedClass: (cls: GameClass) => void
+  setSelectedLevel: (level: LevelId) => void
 }
 
 const GameContext = createContext<GameState | undefined>(undefined)
@@ -24,6 +27,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [companionType, setCompanionType] = useState<CompanionType | null>(null)
   const [gameMode, setGameMode] = useState<GameMode | null>(null)
   const [selectedClass, setSelectedClass] = useState<GameClass | null>(null)
+  const [selectedLevel, setSelectedLevel] = useState<LevelId>("level-1")
 
   return (
     <GameContext.Provider
@@ -32,10 +36,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
         companionType,
         gameMode,
         selectedClass,
+        selectedLevel,
         setUsername,
         setCompanionType,
         setGameMode,
         setSelectedClass,
+        setSelectedLevel,
       }}
     >
       {children}

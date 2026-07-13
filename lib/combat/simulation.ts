@@ -24,10 +24,13 @@ export class CombatSimulation {
   
   playerActor: Actor;
   bossActor: Actor;
+  selectedLevel: "level-1" | "level-2";
 
   onLogUpdate: ((log: string[]) => void) | null = null;
 
-  constructor(username: string, playerClass: GameClass) {
+  constructor(username: string, playerClass: GameClass, selectedLevel: "level-1" | "level-2" = "level-1") {
+    this.selectedLevel = selectedLevel;
+
     // 1. Initialize Player
     const playerRole: Role = playerClass === "priest" ? "healer" : (playerClass === "warrior" || playerClass === "paladin" ? "tank" : "damage");
     this.playerActor = new Actor(
@@ -73,26 +76,66 @@ export class CombatSimulation {
       this.actors.push(new Actor(comp.id, comp.name, finalClass, "player", finalRole, comp.pos, false));
     });
 
-    // 3. Initialize Boss
-    this.bossActor = new Actor(
-      "boss", 
-      "Evil Raid Boss", 
-      "boss", 
-      "enemy", 
-      "tank", 
-      new THREE.Vector3(0, 0, -15), 
-      false
-    );
-    this.actors.push(this.bossActor);
+    // 3. Initialize Enemies based on selectedLevel
+    if (selectedLevel === "level-1") {
+      this.bossActor = new Actor(
+        "boss", 
+        "Evil Raid Boss", 
+        "boss", 
+        "enemy", 
+        "tank", 
+        new THREE.Vector3(0, 0, -15), 
+        false
+      );
+      this.actors.push(this.bossActor);
+    } else {
+      // Level 2: 4v4 team skirmish
+      // Gladiator Captain acts as the "bossActor" (Warrior/Boss class, 500 maxHealth)
+      this.bossActor = new Actor(
+        "boss_captain", 
+        "Gladiator Captain", 
+        "boss", 
+        "enemy", 
+        "tank", 
+        new THREE.Vector3(0, 0, -15), 
+        false
+      );
+      this.bossActor.maxHealth = 500;
+      this.bossActor.health = 500;
+      this.actors.push(this.bossActor);
 
-    // Initial targets
-    this.actors.forEach((a) => {
-      if (a.faction === "player") {
-        a.target = this.bossActor;
-      } else {
-        a.target = this.playerActor;
-      }
-    });
+      // Now add 3 additional distinct enemy gladiators
+      const enemyGladiators = [
+        { id: "gladiator_pyro", name: "Gladiator Pyromancer", class: "mage" as const, role: "damage" as const, pos: new THREE.Vector3(-8, 0, -12) },
+        { id: "gladiator_cleric", name: "Gladiator Cleric", class: "priest" as const, role: "healer" as const, pos: new THREE.Vector3(8, 0, -12) },
+        { id: "gladiator_scout", name: "Gladiator Scout", class: "hunter" as const, role: "damage" as const, pos: new THREE.Vector3(12, 0, -15) },
+      ];
+
+      enemyGladiators.forEach((enemy) => {
+        const actor = new Actor(enemy.id, enemy.name, enemy.class, "enemy", enemy.role, enemy.pos, false);
+        this.actors.push(actor);
+      });
+    }
+
+    // Set Initial Targets
+    if (selectedLevel === "level-1") {
+      this.actors.forEach((a) => {
+        if (a.faction === "player") {
+          a.target = this.bossActor;
+        } else {
+          a.target = this.playerActor;
+        }
+      });
+    } else {
+      // Level 2 Initial Target Selection
+      this.actors.forEach((a) => {
+        if (a.faction === "player") {
+          a.target = this.bossActor; // Players/companions target the Gladiator Captain first
+        } else {
+          a.target = this.playerActor; // Enemies default target the player
+        }
+      });
+    }
   }
 
   log(msg: string) {
@@ -214,92 +257,122 @@ export class CombatSimulation {
     });
     this.visualEffects = this.visualEffects.filter((eff) => eff.elapsed < eff.duration);
 
-    // 6. Companion AI Logic (Run if alive, and not user)
+    // 6. NPC AI Logic (Companions and Enemy Gladiators that aren't the boss/captain)
     this.actors.forEach((actor) => {
-      if (actor.faction === "player" && !actor.isUser && actor.health > 0) {
-        this.runCompanionAI(actor, deltaTime);
+      if (actor.health > 0) {
+        if (actor.faction === "player" && !actor.isUser) {
+          this.runNPCAI(actor, deltaTime);
+        } else if (actor.faction === "enemy" && actor.id !== this.bossActor.id) {
+          this.runNPCAI(actor, deltaTime);
+        }
       }
     });
 
-    // 7. Boss AI Logic
+    // 7. Boss/Gladiator Captain AI Logic
     if (this.bossActor.health > 0) {
       this.runBossAI(deltaTime);
     }
   }
 
-  runCompanionAI(actor: Actor, deltaTime: number) {
+  runNPCAI(actor: Actor, deltaTime: number) {
     if (actor.isCasting) return; // Wait for current cast to finish
 
-    // Find all alive friendly targets
-    const friendlyParty = this.actors.filter((a) => a.faction === "player" && a.health > 0);
-    const boss = this.bossActor;
+    // Find all alive friendly targets (same faction)
+    const friendlyParty = this.actors.filter((a) => a.faction === actor.faction && a.health > 0);
+    // Find all alive hostile targets (opposite faction)
+    const hostileEnemies = this.actors.filter((a) => a.faction !== actor.faction && a.health > 0);
+    
+    if (hostileEnemies.length === 0) {
+      actor.velocity.set(0, 0, 0);
+      return; // No enemies left, stand idle
+    }
 
     // AIs get a list of class abilities
     const abilities = getClassAbilities(actor.class);
     if (abilities.length === 0) return;
 
-    // Companion target acquisition: Default is boss
-    actor.target = boss;
+    // Acquiring / validating current target
+    let currentTarget = actor.target;
+    if (!currentTarget || currentTarget.health <= 0 || currentTarget.faction === actor.faction) {
+      // Default to the closest hostile enemy
+      let closestHostile = hostileEnemies[0];
+      let closestDist = actor.position.distanceTo(closestHostile.position);
+      hostileEnemies.forEach((h) => {
+        const dist = actor.position.distanceTo(h.position);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestHostile = h;
+        }
+      });
+      currentTarget = closestHostile;
+      actor.target = currentTarget;
+    }
 
-    // AI Healer Priority
+    // AI Healer Priority (flash heal lowest HP teammate under 80%)
     if (actor.role === "healer") {
-      // Find lowest health party member
-      let lowestHealthPartyMember = friendlyParty[0];
+      let lowestHealthFriendly = friendlyParty[0];
       friendlyParty.forEach((m) => {
-        if (m.health / m.maxHealth < lowestHealthPartyMember.health / lowestHealthPartyMember.maxHealth) {
-          lowestHealthPartyMember = m;
+        if (m.health / m.maxHealth < lowestHealthFriendly.health / lowestHealthFriendly.maxHealth) {
+          lowestHealthFriendly = m;
         }
       });
 
-      const lowestHpRatio = lowestHealthPartyMember.health / lowestHealthPartyMember.maxHealth;
+      const lowestHpRatio = lowestHealthFriendly.health / lowestHealthFriendly.maxHealth;
 
-      // If anyone is under 80% health, focus on healing!
       if (lowestHpRatio < 0.8) {
-        actor.target = lowestHealthPartyMember;
-        const healSpell = abilities.find((ab) => !ab.requiresHostile && ab.id.includes("heal") || ab.id.includes("surge") || ab.id.includes("light"));
-        if (healSpell && healSpell.canCast(actor, lowestHealthPartyMember)) {
-          // Check range
-          const dist = actor.position.distanceTo(lowestHealthPartyMember.position);
+        actor.target = lowestHealthFriendly;
+        const healSpell = abilities.find((ab) => !ab.requiresHostile && (ab.id.includes("heal") || ab.id.includes("surge") || ab.id.includes("light")));
+        if (healSpell && healSpell.canCast(actor, lowestHealthFriendly)) {
+          const dist = actor.position.distanceTo(lowestHealthFriendly.position);
           if (dist > healSpell.range) {
-            // Move towards them
-            this.moveTowards(actor, lowestHealthPartyMember.position, healSpell.range - 2, deltaTime);
+            this.moveTowards(actor, lowestHealthFriendly.position, healSpell.range - 2, deltaTime);
           } else {
-            // Stop and cast!
             actor.velocity.set(0, 0, 0);
-            healSpell.startCast(actor, lowestHealthPartyMember, this);
+            healSpell.startCast(actor, lowestHealthFriendly, this);
           }
           return;
         }
       }
     }
 
-    // Standard Companion Damage Rotations
-    // Check if we need to cast or attack boss
-    if (boss.health > 0) {
-      // Find best damage spell that is off cooldown
-      const dpsSpell = abilities.find((ab) => ab.requiresHostile);
-      if (dpsSpell && dpsSpell.canCast(actor, boss)) {
-        const dist = actor.position.distanceTo(boss.position);
-        if (dist > dpsSpell.range) {
-          // Move towards boss
-          this.moveTowards(actor, boss.position, dpsSpell.range - 2, deltaTime);
-        } else {
-          // Stop and cast!
-          actor.velocity.set(0, 0, 0);
-          dpsSpell.startCast(actor, boss, this);
+    // Standard Combat Rotation
+    // Target a hostile enemy
+    if (!actor.target || actor.target.faction === actor.faction || actor.target.health <= 0) {
+      let closestHostile = hostileEnemies[0];
+      let closestDist = actor.position.distanceTo(closestHostile.position);
+      hostileEnemies.forEach((h) => {
+        const dist = actor.position.distanceTo(h.position);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestHostile = h;
         }
+      });
+      actor.target = closestHostile;
+    }
+
+    const hostileTarget = actor.target;
+    if (!hostileTarget || hostileTarget.health <= 0) return;
+
+    // Find best damage spell that is off cooldown
+    const dpsSpell = abilities.find((ab) => ab.requiresHostile);
+    if (dpsSpell && dpsSpell.canCast(actor, hostileTarget)) {
+      const dist = actor.position.distanceTo(hostileTarget.position);
+      if (dist > dpsSpell.range) {
+        this.moveTowards(actor, hostileTarget.position, dpsSpell.range - 2, deltaTime);
       } else {
-        // If spell can't be cast due to resource/cooldown, let's keep moving towards boss or facing boss
-        const dist = actor.position.distanceTo(boss.position);
-        if (dist > 5 && actor.role === "tank") {
-          this.moveTowards(actor, boss.position, 4, deltaTime);
-        } else if (dist > 25 && actor.role === "damage") {
-          this.moveTowards(actor, boss.position, 20, deltaTime);
-        } else {
-          // Stop moving and look at boss
-          actor.velocity.set(0, 0, 0);
-          actor.yaw = Math.atan2(boss.position.x - actor.position.x, boss.position.z - actor.position.z);
-        }
+        actor.velocity.set(0, 0, 0);
+        dpsSpell.startCast(actor, hostileTarget, this);
+      }
+    } else {
+      // If spell can't be cast, approach target based on role
+      const dist = actor.position.distanceTo(hostileTarget.position);
+      if (dist > 5 && actor.role === "tank") {
+        this.moveTowards(actor, hostileTarget.position, 4, deltaTime);
+      } else if (dist > 25 && actor.role === "damage") {
+        this.moveTowards(actor, hostileTarget.position, 20, deltaTime);
+      } else {
+        actor.velocity.set(0, 0, 0);
+        actor.yaw = Math.atan2(hostileTarget.position.x - actor.position.x, hostileTarget.position.z - actor.position.z);
       }
     }
   }

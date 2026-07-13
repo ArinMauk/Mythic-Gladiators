@@ -65,15 +65,20 @@ function CameraRig({ player, simulation, onSelectTarget }: { player: Actor; simu
       const key = e.key.toLowerCase();
       keysPressed.current[key] = true;
 
-      // Tab target najbliższy hostile target
+      // Tab target with index-by-index cycling of alive enemies
       if (e.key === "Tab") {
         e.preventDefault();
-        // Find closest hostile target (boss is the main hostile)
         const aliveEnemies = simulation.actors.filter(a => a.faction === "enemy" && a.health > 0);
         if (aliveEnemies.length > 0) {
-          // simple tab through enemies or select boss
-          player.target = aliveEnemies[0];
-          onSelectTarget(aliveEnemies[0]);
+          let nextIndex = 0;
+          if (player.target) {
+            const currentIndex = aliveEnemies.findIndex(e => e.id === player.target?.id);
+            if (currentIndex !== -1) {
+              nextIndex = (currentIndex + 1) % aliveEnemies.length;
+            }
+          }
+          player.target = aliveEnemies[nextIndex];
+          onSelectTarget(aliveEnemies[nextIndex]);
         }
       }
     };
@@ -157,8 +162,8 @@ function CameraRig({ player, simulation, onSelectTarget }: { player: Actor; simu
     const keys = keysPressed.current;
     if (keys["w"] || keys["arrowup"]) move.add(forward);
     if (keys["s"] || keys["arrowdown"]) move.add(forward.clone().negate());
-    if (keys["a"]) move.add(right.clone().negate()); // A is left relative to camera direction
-    if (keys["d"]) move.add(right);                  // D is right relative to camera direction
+    if (keys["a"]) move.add(right);                  // Flipped: A goes left, D goes right relative to camera
+    if (keys["d"]) move.add(right.clone().negate()); // Flipped: D goes right, A goes left relative to camera
 
     if (move.lengthSq() > 0) {
       move.normalize().multiplyScalar(player.stats.speed);

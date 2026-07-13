@@ -72,12 +72,12 @@ const abilityIcons: Record<string, React.ComponentType<LucideProps>> = {
 }
 
 export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
-  const { username, selectedClass, companionType, gameMode } = useGame()
+  const { username, selectedClass, companionType, gameMode, selectedLevel } = useGame()
   
   // 1. Initialize the 3D Combat Simulation Engine (persists in ref)
   const simRef = useRef<CombatSimulation | null>(null)
   if (!simRef.current) {
-    simRef.current = new CombatSimulation(username, selectedClass || "warrior")
+    simRef.current = new CombatSimulation(username, selectedClass || "warrior", selectedLevel || "level-1")
   }
   const simulation = simRef.current
 
@@ -145,17 +145,20 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
     }
   }, [playerAbilities, selectedTarget])
 
+  // Combat status indicators
+  const isVictory = selectedLevel === "level-2"
+    ? party.length > 0 && simulation.actors.filter(a => a.faction === "enemy").every(a => a.health <= 0)
+    : bossHp <= 0
+
+  const isDefeat = playerHp <= 0
+
   const castAbility = (ability: Ability) => {
     if (!ability) return
-    if (player.health <= 0 || boss.health <= 0) return
+    if (player.health <= 0 || isVictory) return
     
     // Attempt casting on currently selected target
     ability.startCast(player, player.target, simulation)
   }
-
-  // Combat status indicators
-  const isVictory = bossHp <= 0
-  const isDefeat = playerHp <= 0
 
   return (
     <div className="min-h-screen bg-zinc-950 p-4 font-sans text-zinc-200 selection:bg-amber-500/30 selection:text-white">
@@ -336,7 +339,7 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
                     <div key={ability.id} className="flex flex-col items-center gap-1.5">
                       <button
                         onClick={() => castAbility(ability)}
-                        disabled={player.health <= 0 || boss.health <= 0}
+                        disabled={player.health <= 0 || isVictory}
                         className={cn(
                           "w-14 h-14 rounded-xl relative border-2 flex items-center justify-center group transition-all duration-300 shadow-md",
                           isAvailable && hasResource
@@ -497,7 +500,11 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
                   Victory!
                 </h2>
                 <p className="text-zinc-400 text-sm mb-6">
-                  You and your companions have triumphed and defeated <span className="text-red-400 font-bold">{boss.name}</span>!
+                  {selectedLevel === "level-2" ? (
+                    <span>You and your companions have triumphed and defeated the enemy gladiators!</span>
+                  ) : (
+                    <span>You and your companions have triumphed and defeated <span className="text-red-400 font-bold">{boss.name}</span>!</span>
+                  )}
                 </p>
                 <Button onClick={onBack} className="w-full bg-yellow-500 hover:bg-yellow-400 text-zinc-950 font-extrabold tracking-wider uppercase transition-colors">
                   Return to Menu

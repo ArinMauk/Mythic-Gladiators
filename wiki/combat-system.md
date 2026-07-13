@@ -395,3 +395,51 @@ This section documents critical bug resolutions and performance optimizations ap
     this.yaw = Math.atan2(this.target.position.x - this.position.x, this.target.position.z - this.position.z);
   }
   ```
+
+---
+
+## 5. Screen Navigation Flow & Encounter Architecture
+
+This section outlines the newly introduced Level Selection Screen flow and the multi-enemy PVE team battle system.
+
+### A. Extended Screen Transition Flow
+
+The user journey incorporates a dedicated level gating screen to let players select their specific trial before entering active combat.
+
+```
+[Login Screen / Signup]
+         │
+         ▼
+[Path Selection Screen (Companion Type & Game Mode)]
+         │
+         ▼
+[Class Selection Screen (Warrior, Priest, Mage, etc.)]
+         │
+         ▼
+[Level Selection Screen] ◄─── (New Gate: Choose Trial)
+         │
+         ├───► Level 1: Evil Raid Boss Battle
+         └───► Level 2: Gladiator Skirmish
+         │
+         ▼
+[3D Battle Arena Screen]
+```
+
+### B. Level 2 (4v4 Skirmish) Team Composition & Positions
+
+In Level 2, the combat engine initializes an organized hostile gladiator party that balances tanking, healing, and damage capabilities.
+
+| Entity Name | Class / Type | Faction | Role | HP | Starting Vector3 | Abilities Wielded |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Gladiator Captain** | `boss` | `enemy` | `tank` | 500 | `(0, 0, -15)` | `BossSmash`, `BossFireRain` |
+| **Gladiator Pyromancer** | `mage` | `enemy` | `damage` | 300 | `(-8, 0, -12)` | `Fireball`, `Blink` |
+| **Gladiator Cleric** | `priest` | `enemy` | `healer` | 300 | `(8, 0, -12)` | `Smite`, `FlashHeal` |
+| **Gladiator Scout** | `hunter` | `enemy` | `damage` | 300 | `(12, 0, -15)` | `SteadyShot`, `ArcaneShot` |
+
+### C. Unified Faction-Based NPC AI Loop
+
+To support Level 2, we refactored the Companion-only AI into a generic, faction-aware NPC AI scheduler (`runNPCAI`). AI actors evaluate priorities symmetrically based on their own `actor.faction` (`player` vs `enemy` teams), enabling enemy gladiators to execute advanced strategic routines.
+
+* **Healer Priority (HP <= 80%):** If a teammate of the *same faction* falls below 80% HP, the healer dynamically overrides their offensive focus to stop, face, and cast single-target healing spells (e.g. `FlashHeal`, `HealingSurge`) on them.
+* **Target Acquisition:** Actors lock onto the closest enemy of the *opposite faction* if no priority targets or threat mappings exist.
+* **Tactical spell-casting:** Ranged damage dealers maintain spacing (20m) while melee tanks approach within 4m of hostiles to strike.

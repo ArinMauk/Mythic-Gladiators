@@ -142,28 +142,44 @@ function CameraRig({ player, simulation, onSelectTarget }: { player: Actor; simu
   }, [gl, player, simulation, onSelectTarget]);
 
   useFrame((state, delta) => {
-    // 1. Process player movement inputs
-    const move = new THREE.Vector3();
-    const forward = new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw));
-    const right = new THREE.Vector3(Math.sin(player.yaw - Math.PI / 2), 0, Math.cos(player.yaw - Math.PI / 2));
-
-    const keys = keysPressed.current;
-    if (keys["w"] || keys["arrowup"]) move.add(forward);
-    if (keys["s"] || keys["arrowdown"]) move.add(forward.clone().negate());
-    if (keys["a"]) move.add(right);
-    if (keys["d"]) move.add(right.clone().negate());
-
-    if (move.lengthSq() > 0) {
-      move.normalize().multiplyScalar(player.stats.speed);
-      player.velocity.copy(move);
-    } else {
-      player.velocity.set(0, 0, 0);
-    }
-
     // 2. Position camera relative to player position
     const radius = camRadiusRef.current;
     const theta = camThetaRef.current;
     const phi = camPhiRef.current;
+
+    // Calculate movement directions relative to camera theta (camera horizontal angle)
+    // When looking at character from behind, theta defaults to Math.PI (which faces forward relative to screen)
+    const forward = new THREE.Vector3(-Math.sin(theta), 0, -Math.cos(theta)).normalize();
+    const right = new THREE.Vector3(-Math.cos(theta), 0, Math.sin(theta)).normalize();
+
+    // 1. Process player movement inputs
+    const move = new THREE.Vector3();
+    const keys = keysPressed.current;
+    if (keys["w"] || keys["arrowup"]) move.add(forward);
+    if (keys["s"] || keys["arrowdown"]) move.add(forward.clone().negate());
+    if (keys["a"]) move.add(right.clone().negate()); // A is left relative to camera direction
+    if (keys["d"]) move.add(right);                  // D is right relative to camera direction
+
+    if (move.lengthSq() > 0) {
+      move.normalize().multiplyScalar(player.stats.speed);
+      player.velocity.copy(move);
+
+      // WoW-style orientation:
+      // If right click dragging, lock character facing (yaw) with camera angle (theta)
+      if (mouseState.current.isRightDown) {
+        player.yaw = theta;
+      } else {
+        // If left-click looking or free camera, orient character facing in direction of movement
+        player.yaw = Math.atan2(move.x, move.z);
+      }
+    } else {
+      player.velocity.set(0, 0, 0);
+
+      // Even when stationary, align player yaw with camera theta if right click is down
+      if (mouseState.current.isRightDown) {
+        player.yaw = theta;
+      }
+    }
 
     const camOffset = new THREE.Vector3(
       radius * Math.sin(theta) * Math.cos(phi),
@@ -187,12 +203,16 @@ interface ActorMeshProps {
 }
 
 function ActorMesh({ actor, isTargeted, onSelect }: ActorMeshProps) {
+  const groupRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Group>(null);
   const color = classColors[actor.class] || "#ffffff";
   const sizeMultiplier = actor.class === "boss" ? 2.5 : 1.0;
   
   // Bobbing animation for movement
   useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.position.copy(actor.position);
+    }
     if (!meshRef.current) return;
     
     // Death rotation
@@ -233,7 +253,7 @@ function ActorMesh({ actor, isTargeted, onSelect }: ActorMeshProps) {
   const Icon = classIcons[actor.class] || Shield;
 
   return (
-    <group position={actor.position}>
+    <group ref={groupRef}>
       {/* Target Ring underneath */}
       {isTargeted && actor.health > 0 && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
@@ -320,7 +340,7 @@ function ProjectileMesh({ proj }: { proj: Projectile }) {
   });
 
   return (
-    <mesh ref={meshRef}>
+    <mesh ref={meshRef} position={proj.position}>
       <sphereGeometry args={[proj.size, 16, 16]} />
       <meshBasicMaterial color={proj.color} />
     </mesh>

@@ -262,6 +262,11 @@ export class Actor {
 
     // Update cast timer
     if (this.isCasting) {
+      // Rotate to face the target if we have one
+      if (this.target) {
+        this.yaw = Math.atan2(this.target.position.x - this.position.x, this.target.position.z - this.position.z);
+      }
+      
       // If actor started moving, interrupt cast!
       if (this.velocity.lengthSq() > 0.01) {
         this.interruptCast();

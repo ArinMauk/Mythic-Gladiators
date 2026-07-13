@@ -38,8 +38,9 @@ export class Projectile {
       return;
     }
 
-    // Aim slightly above ground, where actor torso is (approx y = 1.0)
-    const targetPos = this.target.position.clone().add(new THREE.Vector3(0, 1.0, 0));
+    // Aim slightly above ground, where actor torso is (approx y = 1.0 for standard characters, 2.5 for Boss)
+    const torsoHeight = this.target.class === "boss" ? 2.5 : 1.0;
+    const targetPos = this.target.position.clone().add(new THREE.Vector3(0, torsoHeight, 0));
     const dir = targetPos.clone().sub(this.position);
     const dist = dir.length();
     const moveDist = this.speed * deltaTime;

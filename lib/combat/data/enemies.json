@@ -9,6 +9,12 @@
     "level-1": {
       "enemies": [
         { "id": "boss", "name": "Evil Raid Boss", "class": "boss", "role": "tank", "pos": { "x": 0, "y": 0, "z": -15 } }
+      ],
+      "obstacles": [
+        { "id": "p1_l1", "type": "pillar", "x": -12, "z": -8, "radius": 2.0, "height": 6 },
+        { "id": "p2_l1", "type": "pillar", "x": 12, "z": -8, "radius": 2.0, "height": 6 },
+        { "id": "p3_l1", "type": "pillar", "x": -12, "z": 8, "radius": 2.0, "height": 6 },
+        { "id": "p4_l1", "type": "pillar", "x": 12, "z": 8, "radius": 2.0, "height": 6 }
       ]
     },
     "level-2": {
@@ -17,6 +23,12 @@
         { "id": "gladiator_pyro", "name": "Gladiator Pyromancer", "class": "mage", "role": "damage", "pos": { "x": -8, "y": 0, "z": -12 } },
         { "id": "gladiator_cleric", "name": "Gladiator Cleric", "class": "priest", "role": "healer", "pos": { "x": 8, "y": 0, "z": -12 } },
         { "id": "gladiator_scout", "name": "Gladiator Scout", "class": "hunter", "role": "damage", "pos": { "x": 12, "y": 0, "z": -15 } }
+      ],
+      "obstacles": [
+        { "id": "p1_l2", "type": "pillar", "x": -12, "z": -8, "radius": 2.0, "height": 6 },
+        { "id": "p2_l2", "type": "pillar", "x": 12, "z": -8, "radius": 2.0, "height": 6 },
+        { "id": "p3_l2", "type": "pillar", "x": -12, "z": 8, "radius": 2.0, "height": 6 },
+        { "id": "p4_l2", "type": "pillar", "x": 12, "z": 8, "radius": 2.0, "height": 6 }
       ]
     }
   }

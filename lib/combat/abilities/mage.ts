@@ -37,6 +37,7 @@ export const mageExecutors = {
     if (dst > 38) {
       caster.position.setLength(38);
     }
+    simulation.resolveCollisions(caster);
     
     simulation.log(`${caster.name} blinks forward 15 meters!`);
     simulation.spawnVisualEffect("aoe", caster.position.clone(), undefined, "#60a5fa", 1.5, 0.4);

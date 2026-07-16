@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { Actor } from "./actor";
 import { Projectile } from "./projectile";
-import { GameClass, Faction, Role, VisualEffect, FloatingText } from "./types";
+import { GameClass, Faction, Role, VisualEffect, FloatingText, Obstacle } from "./types";
 import { getClassAbilities, Ability } from "./ability";
 import enemiesData from "./data/enemies.json";
 
@@ -21,6 +21,7 @@ export class CombatSimulation {
   dangerZones: DangerZone[] = [];
   floatingTexts: FloatingText[] = [];
   visualEffects: VisualEffect[] = [];
+  obstacles: Obstacle[] = [];
   battleLog: string[] = ["The Battle Arena has loaded! Prepare yourselves!"];
   
   playerActor: Actor;
@@ -73,6 +74,20 @@ export class CombatSimulation {
     const levelConf = (enemiesData.levels as any)[selectedLevel];
     if (!levelConf || !levelConf.enemies || levelConf.enemies.length === 0) {
       throw new Error(`Enemies configuration not found for level: ${selectedLevel}`);
+    }
+
+    // Initialize Obstacles
+    this.obstacles = [];
+    if (levelConf.obstacles) {
+      levelConf.obstacles.forEach((obs: any) => {
+        this.obstacles.push({
+          id: obs.id,
+          type: obs.type,
+          position: new THREE.Vector3(obs.x, 0, obs.z),
+          radius: obs.radius,
+          height: obs.height || 6
+        });
+      });
     }
 
     // Set first enemy as bossActor
@@ -195,13 +210,14 @@ export class CombatSimulation {
     // 1. Update Actors
     this.actors.forEach((actor) => {
       actor.update(deltaTime, this.bossActor);
+      this.resolveCollisions(actor);
     });
 
     // Clean up dead actors (except player & boss, which stay for victory/defeat handling)
     // Actually, keep them but they stay in 'die' state.
 
     // 2. Update Projectiles
-    this.projectiles.forEach((proj) => proj.update(deltaTime));
+    this.projectiles.forEach((proj) => proj.update(deltaTime, this));
     this.projectiles = this.projectiles.filter((proj) => !proj.isDead);
 
     // 3. Update Danger Zones (tick damage)
@@ -310,7 +326,7 @@ export class CombatSimulation {
       if (lowestHpRatio < 0.8) {
         actor.target = lowestHealthFriendly;
         const healSpell = abilities.find((ab) => !ab.requiresHostile && (ab.id.includes("heal") || ab.id.includes("surge") || ab.id.includes("light")));
-        if (healSpell && healSpell.canCast(actor, lowestHealthFriendly)) {
+        if (healSpell && healSpell.canCast(actor, lowestHealthFriendly, this)) {
           const dist = actor.position.distanceTo(lowestHealthFriendly.position);
           if (dist > healSpell.range) {
             this.moveTowards(actor, lowestHealthFriendly.position, healSpell.range - 2, deltaTime);
@@ -343,7 +359,7 @@ export class CombatSimulation {
 
     // Find best damage spell that is off cooldown
     const dpsSpell = abilities.find((ab) => ab.requiresHostile);
-    if (dpsSpell && dpsSpell.canCast(actor, hostileTarget)) {
+    if (dpsSpell && dpsSpell.canCast(actor, hostileTarget, this)) {
       const dist = actor.position.distanceTo(hostileTarget.position);
       if (dist > dpsSpell.range) {
         this.moveTowards(actor, hostileTarget.position, dpsSpell.range - 2, deltaTime);
@@ -403,14 +419,14 @@ export class CombatSimulation {
     const fireRain = abilities.find((ab) => ab.id === "boss_fire_rain")!;
 
     // Rain of fire check (cooldown-based)
-    if (fireRain.canCast(this.bossActor, null)) {
+    if (fireRain.canCast(this.bossActor, null, this)) {
       this.bossActor.velocity.set(0, 0, 0);
       fireRain.startCast(this.bossActor, null, this);
       return;
     }
 
     // Melee smash check
-    if (smash.canCast(this.bossActor, bestTarget)) {
+    if (smash.canCast(this.bossActor, bestTarget, this)) {
       const dist = this.bossActor.position.distanceTo(bestTarget.position);
       if (dist > smash.range) {
         // Move towards target
@@ -456,5 +472,81 @@ export class CombatSimulation {
       actor.velocity.copy(dir).multiplyScalar(actor.stats.speed);
       actor.yaw = Math.atan2(dir.x, dir.z);
     }
+  }
+
+  resolveCollisions(actor: Actor) {
+    if (actor.health <= 0) return;
+
+    const actorRadius = actor.class === "boss" ? 1.5 : 0.6; // standard actor radius is 0.6, boss is 1.5
+
+    this.obstacles.forEach((obs) => {
+      // 2D collision detection (xz plane)
+      const dx = actor.position.x - obs.position.x;
+      const dz = actor.position.z - obs.position.z;
+      const distance = Math.sqrt(dx * dx + dz * dz);
+      const minDistance = obs.radius + actorRadius;
+
+      if (distance < minDistance) {
+        // Colliding! Push actor out
+        const pushDist = minDistance - distance;
+        
+        // Handle overlap resolution
+        if (distance === 0) {
+          // Prevent divide-by-zero if somehow exactly at center
+          actor.position.x += minDistance;
+        } else {
+          actor.position.x += (dx / distance) * pushDist;
+          actor.position.z += (dz / distance) * pushDist;
+        }
+      }
+    });
+  }
+
+  checkLineOfSight(posA: THREE.Vector3, posB: THREE.Vector3): boolean {
+    // 2D line segment-to-circle intersection test for every pillar obstacle
+    for (const obs of this.obstacles) {
+      const ax = posA.x;
+      const az = posA.z;
+      const bx = posB.x;
+      const bz = posB.z;
+      const cx = obs.position.x;
+      const cz = obs.position.z;
+      const r = obs.radius;
+
+      // Segment vector
+      const vx = bx - ax;
+      const vz = bz - az;
+
+      // Vector from segment start to circle center
+      const wx = cx - ax;
+      const wz = cz - az;
+
+      const segLenSq = vx * vx + vz * vz;
+      if (segLenSq === 0) {
+        // Point target: check distance from posA to obstacle center
+        const distSq = wx * wx + wz * wz;
+        if (distSq < r * r) return false;
+        continue;
+      }
+
+      // Projection factor t (clamped to [0, 1])
+      let t = (wx * vx + wz * vz) / segLenSq;
+      t = Math.max(0, Math.min(1, t));
+
+      // Closest point P on the segment to circle center
+      const px = ax + t * vx;
+      const pz = az + t * vz;
+
+      // Distance from circle center to closest point P
+      const dx = cx - px;
+      const dz = cz - pz;
+      const distSq = dx * dx + dz * dz;
+
+      if (distSq < r * r) {
+        // Intersection detected! Line of sight is blocked
+        return false;
+      }
+    }
+    return true;
   }
 }

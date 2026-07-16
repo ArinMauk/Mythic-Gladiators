@@ -28,6 +28,7 @@ export const warriorExecutors = {
     // Instantly charge caster to target position
     const dir = target.position.clone().sub(caster.position).normalize();
     caster.position.copy(target.position).addScaledVector(dir, -2.5); // position behind target slightly
+    simulation.resolveCollisions(caster);
     caster.addResource("rage", 20); // generates 20 rage
 
     simulation.log(`${caster.name} charges at ${target.name} and gains 20 Rage!`);

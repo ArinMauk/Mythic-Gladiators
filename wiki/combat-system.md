@@ -426,7 +426,7 @@ This section documents critical bug resolutions and performance optimizations ap
 
 ---
 
-## 5. Screen Navigation Flow & Encounter Architecture
+## 6. Screen Navigation Flow & Encounter Architecture
 
 This section outlines the newly introduced Level Selection Screen flow and the multi-enemy PVE team battle system.
 
@@ -471,3 +471,34 @@ To support Level 2, we refactored the Companion-only AI into a generic, faction-
 * **Healer Priority (HP <= 80%):** If a teammate of the *same faction* falls below 80% HP, the healer dynamically overrides their offensive focus to stop, face, and cast single-target healing spells (e.g. `FlashHeal`, `HealingSurge`) on them.
 * **Target Acquisition:** Actors lock onto the closest enemy of the *opposite faction* if no priority targets or threat mappings exist.
 * **Tactical spell-casting:** Ranged damage dealers maintain spacing (20m) while melee tanks approach within 4m of hostiles to strike.
+
+---
+
+## 7. Map Obstacles, Collisions, and Line-of-Sight (LoS)
+
+To introduce strategic depth reminiscent of World of Warcraft's pillar-hugging arena gameplay, we implemented a complete dynamic obstacles system. This system integrates physical boundaries, projectile interception, and casting Line-of-Sight symmetrically for both players and AI.
+
+### A. Dynamic Level-Based Obstacle Gating
+Map obstacles are decoupled from engine logic and configured directly inside the JSON database (`enemies.json`). This allows map designers to specify a list of circular pillar obstacles with unique identifiers, 2D coordinates `(x, z)`, radius parameters, and heights per level:
+```json
+"obstacles": [
+  { "id": "p1_l1", "type": "pillar", "x": -12, "z": -8, "radius": 2.0, "height": 6 },
+  { "id": "p2_l1", "type": "pillar", "x": 12, "z": -8, "radius": 2.0, "height": 6 }
+]
+```
+
+### B. Overlap Resolution & Slide Physics
+In the frame update loop inside `CombatSimulation.update`, right after updating character positions, the engine executes `resolveCollisions(actor)`. If the 2D distance between an actor and a pillar's center is less than the combined radii of the actor (standard: `0.6`, boss: `1.5`) and the pillar, the overlap is resolved by pushing the actor radially outward to the pillar boundary. 
+
+This simple vector resolution naturally produces perfect **sliding physics** when actors try to run into a pillar at an angle. It also prevents any character clipping during high-speed teleportation actions such as Warrior's `charge` or Mage's `blink`.
+
+### C. Projectile Interception
+Projectiles now parse `simulation` during their frame ticks. If a projectile's $(x, z)$ coordinate enters any obstacle's radius, it collides with the pillar, logs a message (`A projectile hit a pillar and dissipated!`), triggers a localized splash visual effect, and is destroyed instantly without applying damage or triggering the hit callback.
+
+### D. Line-of-Sight (LoS) Casting Restrictions
+Before casting a targeted ability, the engine calls `canCast()` and executes a robust 2D line segment-to-circle intersection test (`checkLineOfSight`) for each pillar:
+1. Determine the closest point $P$ on the caster-to-target line segment to the pillar center $C$.
+2. Calculate the squared distance $D^2 = |P - C|^2$.
+3. If $D^2 < R^2$ (where $R$ is the pillar radius), the line of sight is blocked.
+
+If a human player attempts to cast behind a pillar, the cast is blocked and logs `"Target is not in line of sight!"`. If an NPC (companion or enemy) loses LoS, their casting is symmetrically blocked, and they automatically execute their movement fallback to run around the pillar to re-acquire their target.

@@ -38,3 +38,11 @@ export interface FloatingText {
   duration: number;
   elapsed: number;
 }
+
+export interface Obstacle {
+  id: string;
+  type: string; // e.g. "pillar"
+  position: THREE.Vector3;
+  radius: number;
+  height: number;
+}

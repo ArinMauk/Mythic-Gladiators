@@ -40,7 +40,7 @@ export abstract class Ability {
   requiresHostile: boolean = true;
 
   // Verification
-  canCast(caster: Actor, target: Actor | null): boolean {
+  canCast(caster: Actor, target: Actor | null, simulation?: any): boolean {
     if (this.requiresTarget && !target) return false;
     if (caster.getCooldown(this.id) > 0) return false;
     if (caster.currentResource(this.cost.resource) < this.cost.amount) return false;
@@ -53,13 +53,25 @@ export abstract class Ability {
       const isFriendly = caster.faction === target.faction;
       if (this.requiresHostile && isFriendly) return false;
       if (!this.requiresHostile && this.requiresTarget && !isFriendly) return false;
+
+      // Line of Sight check
+      if (simulation && simulation.checkLineOfSight) {
+        if (!simulation.checkLineOfSight(caster.position, target.position)) {
+          return false;
+        }
+      }
     }
     return true;
   }
 
   // Cast Phase
   startCast(caster: Actor, target: Actor | null, simulation: any) {
-    if (!this.canCast(caster, target)) return;
+    if (!this.canCast(caster, target, simulation)) {
+      if (caster.isUser && target && simulation.checkLineOfSight && !simulation.checkLineOfSight(caster.position, target.position)) {
+        simulation.log("Target is not in line of sight!");
+      }
+      return;
+    }
     
     caster.spendResource(this.cost.resource, this.cost.amount);
     if (this.castTime > 0) {

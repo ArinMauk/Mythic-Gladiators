@@ -415,6 +415,29 @@ function FloatingTextMesh({ ft }: { ft: FloatingText }) {
   );
 }
 
+// Obstacle 3D Component (Pillars/Walls)
+function ObstacleMesh({ obstacle }: { obstacle: any }) {
+  return (
+    <group position={[obstacle.position.x, 0, obstacle.position.z]}>
+      {/* Pillar Base / Body */}
+      <mesh position={[0, obstacle.height / 2, 0]}>
+        <cylinderGeometry args={[obstacle.radius, obstacle.radius, obstacle.height, 16]} />
+        <meshStandardMaterial color="#475569" roughness={0.7} metalness={0.2} />
+      </mesh>
+      {/* Pillar Capital / Top */}
+      <mesh position={[0, obstacle.height, 0]}>
+        <cylinderGeometry args={[obstacle.radius * 1.15, obstacle.radius, 0.4, 16]} />
+        <meshStandardMaterial color="#334155" roughness={0.6} />
+      </mesh>
+      {/* Pillar Base trim */}
+      <mesh position={[0, 0.2, 0]}>
+        <cylinderGeometry args={[obstacle.radius * 1.1, obstacle.radius * 1.15, 0.4, 16]} />
+        <meshStandardMaterial color="#334155" roughness={0.8} />
+      </mesh>
+    </group>
+  );
+}
+
 // 7. Arena World (Static Ground, Pillars, Lighting)
 function ArenaWorld() {
   return (
@@ -492,6 +515,11 @@ export function Arena3DCanvas({ simulation, onSelectTarget }: Arena3DCanvasProps
 
       {/* World Elements */}
       <ArenaWorld />
+
+      {/* Render Obstacles */}
+      {simulation.obstacles.map((obs) => (
+        <ObstacleMesh key={obs.id} obstacle={obs} />
+      ))}
 
       {/* Render Actors */}
       {simulation.actors.map((actor) => (

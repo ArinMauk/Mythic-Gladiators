@@ -1,0 +1,274 @@
+{
+  "warrior": {
+    "trees": [
+      {
+        "id": "arms",
+        "name": "Arms",
+        "description": "Devastating two-handed physical combat and combat tactician.",
+        "talents": [
+          { "id": "warrior_arms_t1", "name": "Deep Wounds", "description": "Bleed-infused strikes increase all physical damage dealt by 15%", "maxPoints": 1, "bonus": { "damage_pct": 0.15 } },
+          { "id": "warrior_arms_t2", "name": "Impale", "description": "Precise targeting increases physical critical strike chance by 10%", "maxPoints": 1, "bonus": { "spellCrit": 0.10 } },
+          { "id": "warrior_arms_t3", "name": "Overpower", "description": "Unlocks Overpower: A rapid physical melee strike with +20% critical chance (costs 10 Rage, 4s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "overpower" } }
+        ]
+      },
+      {
+        "id": "fury",
+        "name": "Fury",
+        "description": "High-speed dual-wielding and aggressive rage amplification.",
+        "talents": [
+          { "id": "warrior_fury_t1", "name": "Enrage", "description": "Furious adrenaline increases movement speed by 25%", "maxPoints": 1, "bonus": { "speed": 1.5 } },
+          { "id": "warrior_fury_t2", "name": "Flurry", "description": "Furious strikes increase physical damage dealt by 20%", "maxPoints": 1, "bonus": { "damage_pct": 0.20 } },
+          { "id": "warrior_fury_t3", "name": "Bloodthirst", "description": "Unlocks Bloodthirst: An instant strike that generates 15 Rage (costs 0 Rage, 4s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "bloodthirst" } }
+        ]
+      },
+      {
+        "id": "protection",
+        "name": "Protection",
+        "description": "Stalwart shield master specializing in damage mitigation and high threat.",
+        "talents": [
+          { "id": "warrior_prot_t1", "name": "Toughness", "description": "Hardened plate armor increases Armor by 50%", "maxPoints": 1, "bonus": { "armor_pct": 0.50 } },
+          { "id": "warrior_prot_t2", "name": "Anticipation", "description": "Strategic foresight increases Maximum Health by 20%", "maxPoints": 1, "bonus": { "maxHealth_pct": 0.20 } },
+          { "id": "warrior_prot_t3", "name": "Shield Slam", "description": "Unlocks Shield Slam: A brutal slam generating high threat (costs 15 Rage, 6s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "shield_slam" } }
+        ]
+      }
+    ]
+  },
+  "priest": {
+    "trees": [
+      {
+        "id": "holy",
+        "name": "Holy",
+        "description": "Devoted healer invoking the pure light to restore and resurrect.",
+        "talents": [
+          { "id": "priest_holy_t1", "name": "Spiritual Healing", "description": "Increases all holy healing and damage dealt by 15%", "maxPoints": 1, "bonus": { "healing_pct": 0.15, "damage_pct": 0.15 } },
+          { "id": "priest_holy_t2", "name": "Divine Grace", "description": "Divine guidance increases spell critical strike chance by 10%", "maxPoints": 1, "bonus": { "spellCrit": 0.10 } },
+          { "id": "priest_holy_t3", "name": "Holy Word: Serenity", "description": "Unlocks Holy Word: Serenity: An instant-cast major heal (costs 100 Mana, 10s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "serenity" } }
+        ]
+      },
+      {
+        "id": "disc",
+        "name": "Discipline",
+        "description": "Protective shielding and warding allies against damage.",
+        "talents": [
+          { "id": "priest_disc_t1", "name": "Divine Aegis", "description": "Wards of protection increase Maximum Health by 20%", "maxPoints": 1, "bonus": { "maxHealth_pct": 0.20 } },
+          { "id": "priest_disc_t2", "name": "Mental Agility", "description": "Inner concentration increases movement speed by 25%", "maxPoints": 1, "bonus": { "speed": 1.5 } },
+          { "id": "priest_disc_t3", "name": "Power Word: Shield", "description": "Unlocks Power Word: Shield: Instantly wards target to absorb 80 damage (costs 90 Mana, 6s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "power_word_shield" } }
+        ]
+      },
+      {
+        "id": "shadow",
+        "name": "Shadow",
+        "description": "Weaves dark shadow magic to melt minds and consume target lifeforce.",
+        "talents": [
+          { "id": "priest_shadow_t1", "name": "Darkness", "description": "Increases shadow damage dealt by 15%", "maxPoints": 1, "bonus": { "damage_pct": 0.15 } },
+          { "id": "priest_shadow_t2", "name": "Shadow Power", "description": "Increases shadow critical strike chance by 10%", "maxPoints": 1, "bonus": { "spellCrit": 0.10 } },
+          { "id": "priest_shadow_t3", "name": "Mind Blast", "description": "Unlocks Mind Blast: A devastating 1.5s cast shadow strike (costs 120 Mana, 6s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "mind_blast" } }
+        ]
+      }
+    ]
+  },
+  "hunter": {
+    "trees": [
+      {
+        "id": "marksmanship",
+        "name": "Marksmanship",
+        "description": "Master sniper dealing fatal physical damage from extreme range.",
+        "talents": [
+          { "id": "hunter_marks_t1", "name": "Ranged Weapons Specialization", "description": "Increases physical damage dealt by 15%", "maxPoints": 1, "bonus": { "damage_pct": 0.15 } },
+          { "id": "hunter_marks_t2", "name": "Mortal Shots", "description": "Increases ranged critical strike chance by 10%", "maxPoints": 1, "bonus": { "spellCrit": 0.10 } },
+          { "id": "hunter_marks_t3", "name": "Aimed Shot", "description": "Unlocks Aimed Shot: A massive 2.5s cast sniper shot dealing heavy damage (costs 50 Focus, 6s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "aimed_shot" } }
+        ]
+      },
+      {
+        "id": "beast_mastery",
+        "name": "Beast Mastery",
+        "description": "Symbiotic bond with beast companions increasing damage and ferocity.",
+        "talents": [
+          { "id": "hunter_bm_t1", "name": "Pathfinding", "description": "Increases movement speed by 25%", "maxPoints": 1, "bonus": { "speed": 1.5 } },
+          { "id": "hunter_bm_t2", "name": "Frenzy", "description": "Increases damage dealt by 20%", "maxPoints": 1, "bonus": { "damage_pct": 0.20 } },
+          { "id": "hunter_bm_t3", "name": "Kill Command", "description": "Unlocks Kill Command: An instant target strike dealing heavy beast damage (costs 30 Focus, 6s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "kill_command" } }
+        ]
+      },
+      {
+        "id": "survival",
+        "name": "Survival",
+        "description": "Slippery tactician utilizing traps, poison, and survival reflexes.",
+        "talents": [
+          { "id": "hunter_surv_t1", "name": "Survivalist", "description": "Wilderness training increases Maximum Health by 20%", "maxPoints": 1, "bonus": { "maxHealth_pct": 0.20 } },
+          { "id": "hunter_surv_t2", "name": "Deflection", "description": "Increases Armor by 50% for defense", "maxPoints": 1, "bonus": { "armor_pct": 0.50 } },
+          { "id": "hunter_surv_t3", "name": "Explosive Shot", "description": "Unlocks Explosive Shot: Instantly fires a charge dealing fire damage over time (costs 40 Focus, 6s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "explosive_shot" } }
+        ]
+      }
+    ]
+  },
+  "rogue": {
+    "trees": [
+      {
+        "id": "assassination",
+        "name": "Assassination",
+        "description": "Deadly poison master executing rapid critical strikes.",
+        "talents": [
+          { "id": "rogue_assas_t1", "name": "Malice", "description": "Increases critical strike chance by 10%", "maxPoints": 1, "bonus": { "spellCrit": 0.10 } },
+          { "id": "rogue_assas_t2", "name": "Murder", "description": "Increases all physical damage dealt by 15%", "maxPoints": 1, "bonus": { "damage_pct": 0.15 } },
+          { "id": "rogue_assas_t3", "name": "Mutilate", "description": "Unlocks Mutilate: Instantly strikes with both daggers (costs 50 Energy, 0s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "mutilate" } }
+        ]
+      },
+      {
+        "id": "combat",
+        "name": "Combat",
+        "description": "Agile fencer maximizing speed, armor, and swift weapon strikes.",
+        "talents": [
+          { "id": "rogue_combat_t1", "name": "Fleet Footed", "description": "Unmatched agility increases movement speed by 25%", "maxPoints": 1, "bonus": { "speed": 1.5 } },
+          { "id": "rogue_combat_t2", "name": "Aggression", "description": "Increases damage dealt by 20%", "maxPoints": 1, "bonus": { "damage_pct": 0.20 } },
+          { "id": "rogue_combat_t3", "name": "Adrenaline Rush", "description": "Unlocks Adrenaline Rush: An instant heavy flurry of melee strikes (costs 40 Energy, 10s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "adrenaline_rush" } }
+        ]
+      },
+      {
+        "id": "subtlety",
+        "name": "Subtlety",
+        "description": "Shadow master manipulating the void to strike and evade damage.",
+        "talents": [
+          { "id": "rogue_sub_t1", "name": "Elusiveness", "description": "Shadow evasion increases Armor by 50%", "maxPoints": 1, "bonus": { "armor_pct": 0.50 } },
+          { "id": "rogue_sub_t2", "name": "Master of Subtlety", "description": "Increases Maximum Health by 20%", "maxPoints": 1, "bonus": { "maxHealth_pct": 0.20 } },
+          { "id": "rogue_sub_t3", "name": "Shadowstep", "description": "Unlocks Shadowstep: Teleports directly behind target and strikes for shadow physical damage (costs 20 Energy, 8s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "shadowstep" } }
+        ]
+      }
+    ]
+  },
+  "mage": {
+    "trees": [
+      {
+        "id": "fire",
+        "name": "Fire",
+        "description": "Pyromaniac channeling explosive flame damage and burning bursts.",
+        "talents": [
+          { "id": "mage_fire_t1", "name": "Critical Mass", "description": "Increases spell critical strike chance by 10%", "maxPoints": 1, "bonus": { "spellCrit": 0.10 } },
+          { "id": "mage_fire_t2", "name": "Pyromaniac", "description": "Increases fire damage dealt by 15%", "maxPoints": 1, "bonus": { "damage_pct": 0.15 } },
+          { "id": "mage_fire_t3", "name": "Pyroblast", "description": "Unlocks Pyroblast: A slow 3.5s cast meteor dealing massive damage (costs 150 Mana, 8s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "pyroblast" } }
+        ]
+      },
+      {
+        "id": "frost",
+        "name": "Frost",
+        "description": "Defensive specialist utilizing ice shields and slowing barriers.",
+        "talents": [
+          { "id": "mage_frost_t1", "name": "Ice Floes", "description": "Frost insulation increases Armor by 50%", "maxPoints": 1, "bonus": { "armor_pct": 0.50 } },
+          { "id": "mage_frost_t2", "name": "Incanter's Absorption", "description": "Increases Maximum Health by 20%", "maxPoints": 1, "bonus": { "maxHealth_pct": 0.20 } },
+          { "id": "mage_frost_t3", "name": "Ice Barrier", "description": "Unlocks Ice Barrier: Instantly shields caster to absorb 100 damage (costs 80 Mana, 15s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "ice_barrier" } }
+        ]
+      },
+      {
+        "id": "arcane",
+        "name": "Arcane",
+        "description": "Temporal scholar manipulating raw mana to boost speed and spell speed.",
+        "talents": [
+          { "id": "mage_arcane_t1", "name": "Arcane Instability", "description": "Raw power increases damage dealt by 15%", "maxPoints": 1, "bonus": { "damage_pct": 0.15 } },
+          { "id": "mage_arcane_t2", "name": "Slow", "description": "Arcane mastery increases movement speed by 25%", "maxPoints": 1, "bonus": { "speed": 1.5 } },
+          { "id": "mage_arcane_t3", "name": "Arcane Blast", "description": "Unlocks Arcane Blast: A rapid 1.0s cast spell dealing medium arcane damage (costs 120 Mana, 0s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "arcane_blast" } }
+        ]
+      }
+    ]
+  },
+  "warlock": {
+    "trees": [
+      {
+        "id": "affliction",
+        "name": "Affliction",
+        "description": "Shadow curse master dealing relentless Damage over Time.",
+        "talents": [
+          { "id": "warlock_aff_t1", "name": "Shadow Mastery", "description": "Increases shadow damage dealt by 15%", "maxPoints": 1, "bonus": { "damage_pct": 0.15 } },
+          { "id": "warlock_aff_t2", "name": "Siphon Life", "description": "Curses increase spell critical strike chance by 10%", "maxPoints": 1, "bonus": { "spellCrit": 0.10 } },
+          { "id": "warlock_aff_t3", "name": "Unstable Affliction", "description": "Unlocks Unstable Affliction: An instant shadow curse dealing damage over time (costs 70 Mana, 0s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "unstable_affliction" } }
+        ]
+      },
+      {
+        "id": "demonology",
+        "name": "Demonology",
+        "description": "Dark summoner augmenting defense, health, and summoning meteors.",
+        "talents": [
+          { "id": "warlock_demo_t1", "name": "Demonic Embrace", "description": "Dark pacts increase Maximum Health by 20%", "maxPoints": 1, "bonus": { "maxHealth_pct": 0.20 } },
+          { "id": "warlock_demo_t2", "name": "Master Demonologist", "description": "Increases Armor by 50% for defense", "maxPoints": 1, "bonus": { "armor_pct": 0.50 } },
+          { "id": "warlock_demo_t3", "name": "Hand of Gul'dan", "description": "Unlocks Hand of Gul'dan: Chunnels a shadow meteor strike on target (costs 110 Mana, 6s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "hand_of_gul_dan" } }
+        ]
+      },
+      {
+        "id": "destruction",
+        "name": "Destruction",
+        "description": "Aggressive fire caster invoking chaos and critical bolts.",
+        "talents": [
+          { "id": "warlock_dest_t1", "name": "Ruin", "description": "Destructive magic increases critical strike chance by 10%", "maxPoints": 1, "bonus": { "spellCrit": 0.10 } },
+          { "id": "warlock_dest_t2", "name": "Emberstorm", "description": "Increases damage dealt by 15%", "maxPoints": 1, "bonus": { "damage_pct": 0.15 } },
+          { "id": "warlock_dest_t3", "name": "Chaos Bolt", "description": "Unlocks Chaos Bolt: A slow 2.5s cast shadowfire bolt with extra high critical strike chance (costs 130 Mana, 8s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "chaos_bolt" } }
+        ]
+      }
+    ]
+  },
+  "paladin": {
+    "trees": [
+      {
+        "id": "holy",
+        "name": "Holy",
+        "description": "Divine light specialization focusing on critical healing surges.",
+        "talents": [
+          { "id": "paladin_holy_t1", "name": "Healing Light", "description": "Increases all holy healing and damage dealt by 15%", "maxPoints": 1, "bonus": { "healing_pct": 0.15, "damage_pct": 0.15 } },
+          { "id": "paladin_holy_t2", "name": "Illumination", "description": "Increases spell critical strike chance by 10%", "maxPoints": 1, "bonus": { "spellCrit": 0.10 } },
+          { "id": "paladin_holy_t3", "name": "Holy Shock", "description": "Unlocks Holy Shock: Instantly heals ally or shocks hostile enemy (costs 80 Mana, 6s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "holy_shock" } }
+        ]
+      },
+      {
+        "id": "protection",
+        "name": "Protection",
+        "description": "Shield master focusing on mitigating strikes and absorbing blows.",
+        "talents": [
+          { "id": "paladin_prot_t1", "name": "Toughness", "description": "Divine plate defense increases Armor by 50%", "maxPoints": 1, "bonus": { "armor_pct": 0.50 } },
+          { "id": "paladin_prot_t2", "name": "Sacred Shield", "description": "Divine barriers increase Maximum Health by 20%", "maxPoints": 1, "bonus": { "maxHealth_pct": 0.20 } },
+          { "id": "paladin_prot_t3", "name": "Shield of the Righteous", "description": "Unlocks Shield of the Righteous: A massive shield slam adding 50 absorb shield (costs 60 Mana, 6s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "shield_of_the_righteous" } }
+        ]
+      },
+      {
+        "id": "retribution",
+        "name": "Retribution",
+        "description": "Crusader seeking vengeance with high physical and holy damage.",
+        "talents": [
+          { "id": "paladin_ret_t1", "name": "Crusade", "description": "Increases holy and physical damage by 15%", "maxPoints": 1, "bonus": { "damage_pct": 0.15 } },
+          { "id": "paladin_ret_t2", "name": "Pursuit of Justice", "description": "Vengeful zeal increases movement speed by 25%", "maxPoints": 1, "bonus": { "speed": 1.5 } },
+          { "id": "paladin_ret_t3", "name": "Templar's Verdict", "description": "Unlocks Templar's Verdict: A heavy physical and holy melee execution (costs 90 Mana, 4s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "templars_verdict" } }
+        ]
+      }
+    ]
+  },
+  "shaman": {
+    "trees": [
+      {
+        "id": "elemental",
+        "name": "Elemental",
+        "description": "Nature wizard channeling lightning strikes and explosive criticals.",
+        "talents": [
+          { "id": "shaman_ele_t1", "name": "Convection", "description": "Nature attunement increases critical strike chance by 10%", "maxPoints": 1, "bonus": { "spellCrit": 0.10 } },
+          { "id": "shaman_ele_t2", "name": "Call of Flame", "description": "Increases nature damage dealt by 15%", "maxPoints": 1, "bonus": { "damage_pct": 0.15 } },
+          { "id": "shaman_ele_t3", "name": "Lava Burst", "description": "Unlocks Lava Burst: An instant fire blast with a very high critical strike multiplier (costs 90 Mana, 6s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "lava_burst" } }
+        ]
+      },
+      {
+        "id": "enhancement",
+        "name": "Enhancement",
+        "description": "Melee shock-trooper utilizing elements to boost speed and weapon damage.",
+        "talents": [
+          { "id": "shaman_enha_t1", "name": "Ancestral Swiftness", "description": "Ghost wolf attunement increases movement speed by 25%", "maxPoints": 1, "bonus": { "speed": 1.5 } },
+          { "id": "shaman_enha_t2", "name": "Flurry", "description": "Elemental speed increases damage dealt by 15%", "maxPoints": 1, "bonus": { "damage_pct": 0.15 } },
+          { "id": "shaman_enha_t3", "name": "Stormstrike", "description": "Unlocks Stormstrike: A physical dual weapon strike imbued with lightning (costs 70 Mana, 4s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "stormstrike" } }
+        ]
+      },
+      {
+        "id": "restoration",
+        "name": "Restoration",
+        "description": "Spiritual healer channeling water elements to wash away damage.",
+        "talents": [
+          { "id": "shaman_resto_t1", "name": "Purification", "description": "Increases all holy healing and damage dealt by 15%", "maxPoints": 1, "bonus": { "healing_pct": 0.15, "damage_pct": 0.15 } },
+          { "id": "shaman_resto_t2", "name": "Tidal Waves", "description": "Spiritual waters increase Maximum Health by 20%", "maxPoints": 1, "bonus": { "maxHealth_pct": 0.20 } },
+          { "id": "shaman_resto_t3", "name": "Riptide", "description": "Unlocks Riptide: An instant holy and water heal that heals target (costs 80 Mana, 6s Cooldown).", "maxPoints": 1, "bonus": { "unlock_ability": "riptide" } }
+        ]
+      }
+    ]
+  }
+}

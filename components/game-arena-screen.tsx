@@ -26,7 +26,7 @@ import {
 import { cn } from "@/lib/utils"
 import { CombatSimulation } from "@/lib/combat/simulation"
 import { Actor } from "@/lib/combat/actor"
-import { getClassAbilities, Ability } from "@/lib/combat/ability"
+import { getClassAbilities, Ability, applyTalentsToActor } from "@/lib/combat/ability"
 import ArenaCanvasContainer from "./arena-3d-canvas"
 
 interface GameArenaScreenProps {
@@ -72,12 +72,14 @@ const abilityIcons: Record<string, React.ComponentType<LucideProps>> = {
 }
 
 export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
-  const { username, selectedClass, companionType, gameMode, selectedLevel } = useGame()
+  const { username, selectedClass, companionType, gameMode, selectedLevel, selectedTalents } = useGame()
   
   // 1. Initialize the 3D Combat Simulation Engine (persists in ref)
   const simRef = useRef<CombatSimulation | null>(null)
   if (!simRef.current) {
-    simRef.current = new CombatSimulation(username, selectedClass || "warrior", selectedLevel || "level-1")
+    const sim = new CombatSimulation(username, selectedClass || "warrior", selectedLevel || "level-1")
+    applyTalentsToActor(sim.playerActor, selectedTalents)
+    simRef.current = sim
   }
   const simulation = simRef.current
 
@@ -95,7 +97,7 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
   const [gcdRemaining, setGcdRemaining] = useState(0)
 
   // Abilities lists
-  const playerAbilities = getClassAbilities(player.class)
+  const playerAbilities = getClassAbilities(player.class, selectedTalents)
 
   // Periodic React state pull (10Hz) to prevent performance issues
   useEffect(() => {
@@ -127,15 +129,18 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
     }
   }, [simulation, player, boss, playerAbilities])
 
-  // Keybinding Listeners (1 and 2 keys for Abilities)
+  // Keybinding Listeners (1, 2, and 3 keys for Abilities)
   useEffect(() => {
     const handleKeys = (e: KeyboardEvent) => {
-      if (e.key === "1") {
+      if (e.key === "1" && playerAbilities[0]) {
         e.preventDefault()
         castAbility(playerAbilities[0])
-      } else if (e.key === "2") {
+      } else if (e.key === "2" && playerAbilities[1]) {
         e.preventDefault()
         castAbility(playerAbilities[1])
+      } else if (e.key === "3" && playerAbilities[2]) {
+        e.preventDefault()
+        castAbility(playerAbilities[2])
       }
     }
 

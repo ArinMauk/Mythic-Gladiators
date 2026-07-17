@@ -4,6 +4,7 @@ import { SkillCost } from "./types";
 
 import classesData from "./data/classes.json";
 import abilitiesData from "./data/abilities.json";
+import talentsData from "./data/talents.json";
 
 import { warriorExecutors } from "./abilities/warrior";
 import { priestExecutors } from "./abilities/priest";
@@ -121,16 +122,71 @@ export class CustomAbility extends Ability {
 }
 
 // Map each class to their list of available abilities
-export function getClassAbilities(cls: string): Ability[] {
+export function getClassAbilities(cls: string, selectedTalents: string[] = []): Ability[] {
   const classKey = cls.toLowerCase();
   const classConf = (classesData as any)[classKey];
   if (!classConf || !classConf.abilities) return [];
 
-  return classConf.abilities.map((abilityId: string) => {
+  const abilities = classConf.abilities.map((abilityId: string) => {
     const abConf = (abilitiesData as any)[abilityId];
     if (!abConf) {
       throw new Error(`Ability data not found for ID: ${abilityId}`);
     }
     return new CustomAbility(abilityId, abConf);
+  });
+
+  const classTalents = (talentsData as any)[classKey];
+  if (classTalents && classTalents.trees) {
+    selectedTalents.forEach((talentId) => {
+      classTalents.trees.forEach((tree: any) => {
+        const talent = tree.talents.find((t: any) => t.id === talentId);
+        if (talent && talent.bonus && talent.bonus.unlock_ability) {
+          const abId = talent.bonus.unlock_ability;
+          const abConf = (abilitiesData as any)[abId];
+          if (abConf) {
+            if (!abilities.some((a: Ability) => a.id === abId)) {
+              abilities.push(new CustomAbility(abId, abConf));
+            }
+          }
+        }
+      });
+    });
+  }
+
+  return abilities;
+}
+
+export function applyTalentsToActor(actor: Actor, selectedTalents: string[] = []) {
+  actor.selectedTalents = selectedTalents;
+  const classKey = actor.class.toLowerCase();
+  const classTalents = (talentsData as any)[classKey];
+  if (!classTalents || !classTalents.trees) return;
+
+  selectedTalents.forEach((talentId) => {
+    classTalents.trees.forEach((tree: any) => {
+      const talent = tree.talents.find((t: any) => t.id === talentId);
+      if (talent && talent.bonus) {
+        const bonus = talent.bonus;
+        if (bonus.damage_pct) {
+          actor.damageMultiplier += bonus.damage_pct;
+        }
+        if (bonus.healing_pct) {
+          actor.healingMultiplier += bonus.healing_pct;
+        }
+        if (bonus.spellCrit) {
+          actor.stats.spellCrit += bonus.spellCrit;
+        }
+        if (bonus.armor_pct) {
+          actor.stats.armor = Math.floor(actor.stats.armor * (1 + bonus.armor_pct));
+        }
+        if (bonus.maxHealth_pct) {
+          actor.maxHealth = Math.floor(actor.maxHealth * (1 + bonus.maxHealth_pct));
+          actor.health = actor.maxHealth;
+        }
+        if (bonus.speed) {
+          actor.stats.speed += bonus.speed;
+        }
+      }
+    });
   });
 }

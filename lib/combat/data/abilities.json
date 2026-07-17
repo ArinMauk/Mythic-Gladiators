@@ -178,5 +178,245 @@
     "cost": { "resource": "mana", "amount": 0 },
     "requiresTarget": false,
     "requiresHostile": false
+  },
+  "overpower": {
+    "name": "Overpower",
+    "icon": "Sword",
+    "castTime": 0,
+    "cooldown": 4,
+    "range": 4,
+    "cost": { "resource": "rage", "amount": 10 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "bloodthirst": {
+    "name": "Bloodthirst",
+    "icon": "Activity",
+    "castTime": 0,
+    "cooldown": 4,
+    "range": 4,
+    "cost": { "resource": "rage", "amount": 0 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "shield_slam": {
+    "name": "Shield Slam",
+    "icon": "Shield",
+    "castTime": 0,
+    "cooldown": 6,
+    "range": 4,
+    "cost": { "resource": "rage", "amount": 15 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "serenity": {
+    "name": "HW: Serenity",
+    "icon": "Heart",
+    "castTime": 0,
+    "cooldown": 10,
+    "range": 40,
+    "cost": { "resource": "mana", "amount": 100 },
+    "requiresTarget": true,
+    "requiresHostile": false
+  },
+  "power_word_shield": {
+    "name": "PW: Shield",
+    "icon": "Shield",
+    "castTime": 0,
+    "cooldown": 6,
+    "range": 40,
+    "cost": { "resource": "mana", "amount": 90 },
+    "requiresTarget": true,
+    "requiresHostile": false
+  },
+  "mind_blast": {
+    "name": "Mind Blast",
+    "icon": "Skull",
+    "castTime": 1.5,
+    "cooldown": 6,
+    "range": 40,
+    "cost": { "resource": "mana", "amount": 120 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "aimed_shot": {
+    "name": "Aimed Shot",
+    "icon": "Target",
+    "castTime": 2.5,
+    "cooldown": 6,
+    "range": 40,
+    "cost": { "resource": "focus", "amount": 50 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "kill_command": {
+    "name": "Kill Command",
+    "icon": "Activity",
+    "castTime": 0,
+    "cooldown": 6,
+    "range": 40,
+    "cost": { "resource": "focus", "amount": 30 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "explosive_shot": {
+    "name": "Explosive Shot",
+    "icon": "Flame",
+    "castTime": 0,
+    "cooldown": 6,
+    "range": 40,
+    "cost": { "resource": "focus", "amount": 40 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "mutilate": {
+    "name": "Mutilate",
+    "icon": "Sword",
+    "castTime": 0,
+    "cooldown": 0,
+    "range": 4,
+    "cost": { "resource": "energy", "amount": 50 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "adrenaline_rush": {
+    "name": "Adrenaline Rush",
+    "icon": "Wind",
+    "castTime": 0,
+    "cooldown": 10,
+    "range": 4,
+    "cost": { "resource": "energy", "amount": 40 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "shadowstep": {
+    "name": "Shadowstep",
+    "icon": "Moon",
+    "castTime": 0,
+    "cooldown": 8,
+    "range": 25,
+    "cost": { "resource": "energy", "amount": 20 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "pyroblast": {
+    "name": "Pyroblast",
+    "icon": "Flame",
+    "castTime": 3.5,
+    "cooldown": 8,
+    "range": 40,
+    "cost": { "resource": "mana", "amount": 150 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "ice_barrier": {
+    "name": "Ice Barrier",
+    "icon": "Shield",
+    "castTime": 0,
+    "cooldown": 15,
+    "range": 40,
+    "cost": { "resource": "mana", "amount": 80 },
+    "requiresTarget": false,
+    "requiresHostile": false
+  },
+  "arcane_blast": {
+    "name": "Arcane Blast",
+    "icon": "Sparkles",
+    "castTime": 1.0,
+    "cooldown": 0,
+    "range": 40,
+    "cost": { "resource": "mana", "amount": 120 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "unstable_affliction": {
+    "name": "Unstable Aff",
+    "icon": "Skull",
+    "castTime": 0,
+    "cooldown": 0,
+    "range": 40,
+    "cost": { "resource": "mana", "amount": 70 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "hand_of_gul_dan": {
+    "name": "Hand of Guldan",
+    "icon": "Moon",
+    "castTime": 1.5,
+    "cooldown": 6,
+    "range": 40,
+    "cost": { "resource": "mana", "amount": 110 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "chaos_bolt": {
+    "name": "Chaos Bolt",
+    "icon": "Flame",
+    "castTime": 2.5,
+    "cooldown": 8,
+    "range": 40,
+    "cost": { "resource": "mana", "amount": 130 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "holy_shock": {
+    "name": "Holy Shock",
+    "icon": "Sun",
+    "castTime": 0,
+    "cooldown": 6,
+    "range": 40,
+    "cost": { "resource": "mana", "amount": 80 },
+    "requiresTarget": true,
+    "requiresHostile": false
+  },
+  "shield_of_the_righteous": {
+    "name": "Shield of Rt",
+    "icon": "Shield",
+    "castTime": 0,
+    "cooldown": 6,
+    "range": 4,
+    "cost": { "resource": "mana", "amount": 60 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "templars_verdict": {
+    "name": "Templar Verdict",
+    "icon": "Sun",
+    "castTime": 0,
+    "cooldown": 4,
+    "range": 4,
+    "cost": { "resource": "mana", "amount": 90 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "lava_burst": {
+    "name": "Lava Burst",
+    "icon": "Flame",
+    "castTime": 0,
+    "cooldown": 6,
+    "range": 40,
+    "cost": { "resource": "mana", "amount": 90 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "stormstrike": {
+    "name": "Stormstrike",
+    "icon": "Zap",
+    "castTime": 0,
+    "cooldown": 4,
+    "range": 4,
+    "cost": { "resource": "mana", "amount": 70 },
+    "requiresTarget": true,
+    "requiresHostile": true
+  },
+  "riptide": {
+    "name": "Riptide",
+    "icon": "Droplet",
+    "castTime": 0,
+    "cooldown": 6,
+    "range": 40,
+    "cost": { "resource": "mana", "amount": 80 },
+    "requiresTarget": true,
+    "requiresHostile": false
   }
 }

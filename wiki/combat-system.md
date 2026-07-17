@@ -444,13 +444,16 @@ The user journey incorporates a dedicated level gating screen to let players sel
 [Class Selection Screen (Warrior, Priest, Mage, etc.)]
          │
          ▼
-[Level Selection Screen] ◄─── (New Gate: Choose Trial)
+[Skill Spec Selection Screen (3 Spec Trees, spend up to 3 points)] ◄─── (New Gate: Customize Talents)
+         │
+         ▼
+[Level Selection Screen] ◄─── (Choose Trial)
          │
          ├───► Level 1: Evil Raid Boss Battle
          └───► Level 2: Gladiator Skirmish
          │
          ▼
-[3D Battle Arena Screen]
+[3D Battle Arena Screen (Unlocks 3rd signature active spell if Tier 3 is reached)]
 ```
 
 ### B. Level 2 (4v4 Skirmish) Team Composition & Positions
@@ -502,3 +505,27 @@ Before casting a targeted ability, the engine calls `canCast()` and executes a r
 3. If $D^2 < R^2$ (where $R$ is the pillar radius), the line of sight is blocked.
 
 If a human player attempts to cast behind a pillar, the cast is blocked and logs `"Target is not in line of sight!"`. If an NPC (companion or enemy) loses LoS, their casting is symmetrically blocked, and they automatically execute their movement fallback to run around the pillar to re-acquire their target.
+
+---
+
+## 8. Specialization & Talent Tree System
+
+To add customizable RPG progression, we introduced a fully interactive **Specialization & Talent Tree System** complete with class-specific passive and active modifiers.
+
+### A. Symmetrical Progression Gating
+* **Configuration Gating (`talents.json`):** Decouples static tree names, descriptions, nodes, and stat modifiers for all 8 playable classes.
+* **Point Budgeting:** Players receive **3 Talent Points** in total. They can spend them across **3 Spec Trees** (e.g., *Arms*, *Fury*, and *Protection* for Warrior).
+* **Hierarchy Enforcement:** Tier 2 requires Tier 1, and Tier 3 requires Tier 2. Refunding higher tiers automatically releases locks dynamically.
+* **Point Toggles:** Easy toggles allow players to allocate or refund points in real-time with automatic dependency safety checks.
+
+### B. Dynamic Stat Buffing & Passive Application
+Upon entering active combat, the selected talents are passed to the simulation engine, modifying the core `Actor` stats:
+* **Damage & Healing Multipliers:** We introduced `damageMultiplier` and `healingMultiplier` centrally inside `Actor.ts` (`takeDamage` and `heal` routines) to universally amplify all incoming/outgoing strikes by +15% to +20% seamlessly.
+* **Base Attributes:** Modifies `actor.maxHealth`, `spellCrit`, `armor`, and `speed` dynamically based on spec passive bonuses.
+
+### C. Active Signature Spells (Tier 3 Ultimates)
+Reaching the ultimate Tier 3 node of any specialization tree dynamically unlocks a **signature active 3rd spell slot** on the HUD action bar:
+* **Unique Actions:** Unlocks custom physical, holy, fire, or nature active abilities (e.g. *Overpower*, *Power Word: Shield*, *Pyroblast*, *Chaos Bolt*, *Lava Burst*).
+* **Absorb Shields:** Shielding spells (like Priest's *PW: Shield* or Mage's *Ice Barrier*) utilize the core actor `shield` buffer to absorb incoming strikes.
+* **Chaos Bolt Multiplier:** Chaos Bolt crits reliably, dealing double damage on hit.
+* **Hotkey Mapping:** Action bars and keyboard event loops dynamically scale to support the `"3"` hotkey whenever a third talent ability is slotted.

@@ -13,11 +13,13 @@ interface GameState {
   gameMode: GameMode | null
   selectedClass: GameClass | null
   selectedLevel: LevelId
+  selectedTalents: string[]
   setUsername: (name: string) => void
   setCompanionType: (type: CompanionType) => void
   setGameMode: (mode: GameMode) => void
   setSelectedClass: (cls: GameClass) => void
   setSelectedLevel: (level: LevelId) => void
+  setSelectedTalents: (talents: string[]) => void
 }
 
 const GameContext = createContext<GameState | undefined>(undefined)
@@ -28,6 +30,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [gameMode, setGameMode] = useState<GameMode | null>(null)
   const [selectedClass, setSelectedClass] = useState<GameClass | null>(null)
   const [selectedLevel, setSelectedLevel] = useState<LevelId>("level-1")
+  const [selectedTalents, setSelectedTalents] = useState<string[]>([])
 
   return (
     <GameContext.Provider
@@ -37,11 +40,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
         gameMode,
         selectedClass,
         selectedLevel,
+        selectedTalents,
         setUsername,
         setCompanionType,
         setGameMode,
         setSelectedClass,
         setSelectedLevel,
+        setSelectedTalents,
       }}
     >
       {children}

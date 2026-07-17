@@ -17,6 +17,10 @@ export class Actor {
   maxHealth: number;
   shield: number = 0;
 
+  damageMultiplier: number = 1.0;
+  healingMultiplier: number = 1.0;
+  selectedTalents: string[] = [];
+
   resources: Record<ResourceType, number>;
   maxResources: Record<ResourceType, number>;
 
@@ -132,9 +136,13 @@ export class Actor {
   takeDamage(amount: number, attacker: Actor, type: string): number {
     if (this.health <= 0) return 0;
 
-    // Apply armor reduction for physical damage types
     let damage = amount;
-    const isPhysical = type === "physical" || type === "melee" || type === "crit";
+    if (attacker && attacker.damageMultiplier) {
+      damage = Math.floor(damage * attacker.damageMultiplier);
+    }
+
+    // Apply armor reduction for physical damage types
+    const isPhysical = type === "physical" || type === "melee" || type === "crit" || type === "physical_crit";
     if (isPhysical) {
       const reduction = this.stats.armor / (this.stats.armor + 400); // WoW style armor reduction formula
       damage = Math.floor(damage * (1 - reduction));
@@ -179,7 +187,13 @@ export class Actor {
 
   heal(amount: number, healer: Actor): number {
     if (this.health <= 0) return 0;
-    const actualHeal = Math.min(this.maxHealth - this.health, amount);
+
+    let healAmount = amount;
+    if (healer && healer.healingMultiplier) {
+      healAmount = Math.floor(healAmount * healer.healingMultiplier);
+    }
+
+    const actualHeal = Math.min(this.maxHealth - this.health, healAmount);
     this.health += actualHeal;
 
     // Healers generate threat on the boss when healing party members

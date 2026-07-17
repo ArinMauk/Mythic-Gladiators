@@ -565,7 +565,7 @@ export default function ArenaCanvasContainer(props: Arena3DCanvasProps) {
       </Canvas>
       {/* Camera Instructions Overlay */}
       <div className="absolute top-2 left-2 bg-black/60 backdrop-blur border border-white/5 rounded px-2 py-1 text-[9px] text-zinc-400 select-none pointer-events-none">
-        <span className="font-bold text-zinc-200">Controls:</span> WASD Move | Left-Drag Camera | Right-Drag Steer | Scroll Zoom | Tab Target | 1-2 Hotkeys
+        <span className="font-bold text-zinc-200">Controls:</span> WASD Move | Left-Drag Camera | Right-Drag Steer | Scroll Zoom | Tab Target | 1-3 Hotkeys
       </div>
     </div>
   );

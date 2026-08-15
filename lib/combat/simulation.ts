@@ -29,6 +29,8 @@ export class CombatSimulation {
   selectedLevel: "level-1" | "level-2";
 
   onLogUpdate: ((log: string[]) => void) | null = null;
+  onFloatingTextSpawn?: (text: string, position: THREE.Vector3, color: string, isCrit: boolean) => void;
+  onVisualEffectSpawn?: (type: string, position: THREE.Vector3, targetPosition: THREE.Vector3 | undefined, color: string, size: number, duration: number) => void;
 
   constructor(username: string, playerClass: GameClass, selectedLevel: "level-1" | "level-2" = "level-1") {
     this.selectedLevel = selectedLevel;
@@ -190,6 +192,9 @@ export class CombatSimulation {
       duration: 1.2,
       elapsed: 0
     });
+    if (this.onFloatingTextSpawn) {
+      this.onFloatingTextSpawn(text, position, color, isCrit);
+    }
   }
 
   spawnVisualEffect(type: VisualEffect["type"], position: THREE.Vector3, targetPosition?: THREE.Vector3, color: string = "#ffffff", size: number = 1, duration: number = 0.5) {
@@ -204,6 +209,9 @@ export class CombatSimulation {
       duration,
       elapsed: 0
     });
+    if (this.onVisualEffectSpawn) {
+      this.onVisualEffectSpawn(type, position, targetPosition, color, size, duration);
+    }
   }
 
   update(deltaTime: number) {

@@ -21,6 +21,7 @@ import {
   Wind,
   Moon,
   Droplet,
+  Users,
   LucideProps
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -28,6 +29,8 @@ import { CombatSimulation } from "@/lib/combat/simulation"
 import { Actor } from "@/lib/combat/actor"
 import { getClassAbilities, Ability, applyTalentsToActor } from "@/lib/combat/ability"
 import ArenaCanvasContainer from "./arena-3d-canvas"
+import { MultiplayerManager } from "@/lib/multiplayer-manager"
+import { Copy, Check, Sliders, Wand2 } from "lucide-react"
 
 interface GameArenaScreenProps {
   onBack: () => void
@@ -72,7 +75,19 @@ const abilityIcons: Record<string, React.ComponentType<LucideProps>> = {
 }
 
 export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
-  const { username, selectedClass, companionType, gameMode, selectedLevel, selectedTalents } = useGame()
+  const {
+    username,
+    selectedClass,
+    companionType,
+    gameMode,
+    selectedLevel,
+    selectedTalents,
+    isMultiplayer,
+    isHost,
+    roomId,
+    cheats,
+    updateCheat
+  } = useGame()
   
   // 1. Initialize the 3D Combat Simulation Engine (persists in ref)
   const simRef = useRef<CombatSimulation | null>(null)
@@ -95,6 +110,112 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
   const [playerResources, setPlayerResources] = useState({ ...player.resources })
   const [cooldowns, setCooldowns] = useState<Record<string, number>>({})
   const [gcdRemaining, setGcdRemaining] = useState(0)
+
+  // Cheats / Lobby Toggles
+  const [networkStatus, setNetworkStatus] = useState<string>("Offline Stand-alone")
+  const [showCheats, setShowCheats] = useState(false)
+  const [showLobby, setShowLobby] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [PeerClass, setPeerClass] = useState<any>(null)
+
+  const multiplayerRef = useRef<MultiplayerManager | null>(null)
+
+  // Load PeerJS dynamically from unpkg CDN on browser mount to completely bypass Next.js SSR/Bundler quirks
+  useEffect(() => {
+    if (isMultiplayer && typeof window !== "undefined") {
+      const win = window as any
+      if (win.Peer) {
+        setPeerClass(() => win.Peer)
+        return
+      }
+
+      const script = document.createElement("script")
+      script.src = "https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"
+      script.async = true
+      script.onload = () => {
+        if (win.Peer) {
+          setPeerClass(() => win.Peer)
+        } else {
+          console.error("PeerJS script loaded but window.Peer is undefined")
+          setNetworkStatus("P2P engine error.")
+        }
+      }
+      script.onerror = (err) => {
+        console.error("Failed to load PeerJS CDN script:", err)
+        setNetworkStatus("Network P2P engine failed.")
+      }
+      document.head.appendChild(script)
+    }
+  }, [isMultiplayer])
+
+  // Keep address bar URL in sync with roomId for easy address bar copying
+  useEffect(() => {
+    if (isMultiplayer && roomId && typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get("room") !== roomId) {
+        window.history.replaceState(null, "", `?room=${roomId}`)
+      }
+    }
+  }, [isMultiplayer, roomId])
+
+  // Synchronize cheats values with the local simulation character on change
+  useEffect(() => {
+    if (player) {
+      player.isGodMode = cheats.godMode
+      player.isNoCooldowns = cheats.noCooldowns
+      player.isInstantCast = cheats.instantCast
+      player.cheatSpeedMultiplier = cheats.speedMultiplier
+      player.damageMultiplier = cheats.damageMultiplier
+      player.healingMultiplier = cheats.healingMultiplier
+      player.setCheatLevel(cheats.level)
+      player.gold = cheats.gold
+    }
+  }, [cheats, player])
+
+  // Initialize WebRTC P2P Multiplayer Manager if enabled
+  useEffect(() => {
+    if (!isMultiplayer || !PeerClass) return
+
+    const manager = new MultiplayerManager(
+      simulation,
+      isHost,
+      roomId,
+      username,
+      selectedClass || "warrior",
+      selectedTalents,
+      cheats,
+      PeerClass,
+      (status: string) => setNetworkStatus(status)
+    )
+
+    multiplayerRef.current = manager
+
+    if (isHost) {
+      simulation.onVisualEffectSpawn = (type, pos, target, color, size, duration) => {
+        manager.broadcastVisualEffect(type, pos, color, size, duration)
+      }
+      simulation.onFloatingTextSpawn = (text, pos, color, isCrit) => {
+        manager.broadcastFloatingText(text, pos, color, isCrit)
+      }
+    }
+
+    // High frequency state tick
+    const syncInterval = setInterval(() => {
+      manager.sendTickUpdate()
+    }, 50) // 20Hz
+
+    return () => {
+      clearInterval(syncInterval)
+      manager.destroy()
+    }
+  }, [isMultiplayer, isHost, roomId, username, selectedClass, selectedTalents, simulation, PeerClass])
+
+  // Update multiplayer cheats on change
+  useEffect(() => {
+    if (multiplayerRef.current) {
+      multiplayerRef.current.updateLocalCheats(cheats)
+    }
+  }, [cheats])
 
   // Abilities lists
   const playerAbilities = getClassAbilities(player.class, selectedTalents)
@@ -163,13 +284,17 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
     
     // Attempt casting on currently selected target
     ability.startCast(player, player.target, simulation)
+
+    if (isMultiplayer && !isHost && multiplayerRef.current) {
+      multiplayerRef.current.broadcastClientCast(ability.id, player.target ? player.target.id : null)
+    }
   }
 
   return (
     <div className="min-h-screen bg-zinc-950 p-4 font-sans text-zinc-200 selection:bg-amber-500/30 selection:text-white">
       <div className="max-w-7xl mx-auto space-y-4">
         {/* Top Header Row */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-zinc-900/40 p-3 rounded-xl border border-zinc-800/60 shadow-inner">
           <button
             onClick={onBack}
             className="flex items-center gap-2 text-zinc-400 hover:text-zinc-100 transition-colors text-sm font-semibold group"
@@ -177,10 +302,253 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             Leave Battle
           </button>
-          <div className="bg-zinc-900/80 border border-zinc-800/80 px-3 py-1 rounded-full text-xs text-zinc-400 font-medium">
-            Game Mode: <span className="text-zinc-200 font-bold">{gameMode?.toUpperCase() || "PVE"}</span> | Companion: <span className="text-zinc-200 font-bold">{companionType?.toUpperCase() || "AI"}</span>
+
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            {isMultiplayer && (
+              <button
+                onClick={() => {
+                  setShowLobby(!showLobby)
+                  setShowCheats(false)
+                }}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-black tracking-wide uppercase transition-all duration-300 border flex items-center gap-1.5 shadow-md",
+                  showLobby
+                    ? "bg-cyan-500 text-zinc-950 border-cyan-400 shadow-cyan-500/20"
+                    : "bg-cyan-950/40 text-cyan-400 border-cyan-500/20 hover:bg-cyan-500/10"
+                )}
+              >
+                <Users className="w-3.5 h-3.5" />
+                Lobby {isHost ? `(Host: ${roomId})` : "(Client)"}
+              </button>
+            )}
+
+            <button
+              onClick={() => {
+                setShowCheats(!showCheats)
+                setShowLobby(false)
+              }}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-black tracking-wide uppercase transition-all duration-300 border flex items-center gap-1.5 shadow-md",
+                showCheats
+                  ? "bg-green-500 text-zinc-950 border-green-400 shadow-green-500/20"
+                  : "bg-green-950/40 text-green-400 border-green-500/20 hover:bg-green-500/10"
+              )}
+            >
+              <Sliders className="w-3.5 h-3.5 animate-pulse" />
+              Sandbox Cheats
+            </button>
+
+            <div className="bg-zinc-900/80 border border-zinc-800 px-3 py-1.5 rounded-lg text-xs text-zinc-400 font-medium">
+              Mode: <span className="text-zinc-200 font-bold">{gameMode?.toUpperCase() || "PVE"}</span> | Companion: <span className="text-zinc-200 font-bold">{companionType?.toUpperCase() || "AI"}</span>
+            </div>
           </div>
         </div>
+
+        {/* LOBBY MODAL PANEL */}
+        {isMultiplayer && showLobby && (
+          <Card className="border-cyan-800/80 bg-zinc-900/95 backdrop-blur p-4 rounded-xl shadow-2xl relative animate-fade-in border-2">
+            <h3 className="text-lg font-black text-cyan-400 uppercase tracking-widest mb-1 flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Gladiator Co-Op Room
+            </h3>
+            <p className="text-xs text-zinc-400 mb-4">Invite friends to play together browser-to-browser instantly using WebRTC!</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-3 bg-zinc-950/60 p-3 rounded-lg border border-zinc-800/40">
+                <span className="text-[10px] text-zinc-500 font-extrabold uppercase tracking-wider block">Invite Link</span>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="text"
+                    readOnly
+                    value={typeof window !== "undefined" ? `${window.location.origin}?room=${roomId}` : ""}
+                    className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-zinc-300 font-mono"
+                  />
+                  <button
+                    onClick={() => {
+                      if (typeof window !== "undefined") {
+                        navigator.clipboard.writeText(`${window.location.origin}?room=${roomId}`)
+                        setCopied(true)
+                        setTimeout(() => setCopied(false), 2000)
+                      }
+                    }}
+                    className="bg-cyan-500 hover:bg-cyan-400 text-zinc-950 px-3.5 py-1.5 rounded font-black text-xs uppercase flex items-center gap-1 transition-all"
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copied ? "Copied" : "Copy"}
+                  </button>
+                </div>
+                <div className="text-[10px] text-zinc-500 mt-1 leading-normal">
+                  <span className="text-cyan-400 font-bold">How to join:</span> Copy the link above and send it to your friend. When they open it, they can immediately pick their class and spawn directly in your arena!
+                </div>
+              </div>
+
+              <div className="space-y-3 bg-zinc-950/60 p-3 rounded-lg border border-zinc-800/40">
+                <span className="text-[10px] text-zinc-500 font-extrabold uppercase tracking-wider block">P2P Network Status</span>
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                  </span>
+                  <span className="text-xs font-mono font-bold text-zinc-200">{networkStatus}</span>
+                </div>
+                <div className="text-[10px] text-zinc-500 leading-normal">
+                  Role: <span className="font-bold text-zinc-300">{isHost ? "Raid Host" : "Client Gladiator"}</span>
+                  <p className="mt-1">Since we use client authority, if you or your friend enable hacks, they will immediately be synced to both clients with zero server restrictions.</p>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* SANDBOX CHEATS MODAL PANEL */}
+        {showCheats && (
+          <Card className="border-green-800 bg-zinc-900/95 backdrop-blur p-4 rounded-xl shadow-2xl relative animate-fade-in border-2">
+            <h3 className="text-lg font-black text-green-400 uppercase tracking-widest mb-1 flex items-center gap-2">
+              <Sliders className="w-5 h-5" />
+              Sandbox Hack Panel
+            </h3>
+            <p className="text-xs text-zinc-400 mb-4">Tweak your client stats on the fly! Updates your character and broadcasts hacks to the peer instantly.</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              
+              {/* Toggles */}
+              <div className="space-y-3 bg-zinc-950/40 p-3 rounded-lg border border-zinc-800/40 flex flex-col justify-center">
+                <span className="text-[10px] text-zinc-500 font-extrabold uppercase tracking-wider block mb-1">Status Cheats</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-zinc-300">God Mode (Invincible)</span>
+                  <input
+                    type="checkbox"
+                    checked={cheats.godMode}
+                    onChange={(e) => updateCheat("godMode", e.target.checked)}
+                    className="accent-green-500 h-4 w-4 rounded cursor-pointer"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-zinc-300">No Cooldowns / No GCD</span>
+                  <input
+                    type="checkbox"
+                    checked={cheats.noCooldowns}
+                    onChange={(e) => updateCheat("noCooldowns", e.target.checked)}
+                    className="accent-green-500 h-4 w-4 rounded cursor-pointer"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-zinc-300">Instant Spells</span>
+                  <input
+                    type="checkbox"
+                    checked={cheats.instantCast}
+                    onChange={(e) => updateCheat("instantCast", e.target.checked)}
+                    className="accent-green-500 h-4 w-4 rounded cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* Sliders 1 */}
+              <div className="space-y-3 bg-zinc-950/40 p-3 rounded-lg border border-zinc-800/40">
+                <span className="text-[10px] text-zinc-500 font-extrabold uppercase tracking-wider block mb-1">Level & Wealth</span>
+                <div>
+                  <div className="flex justify-between text-xs text-zinc-300 font-bold mb-1">
+                    <span>Gladiator Level</span>
+                    <span className="text-green-400">{cheats.level}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="100"
+                    value={cheats.level}
+                    onChange={(e) => updateCheat("level", parseInt(e.target.value))}
+                    className="w-full accent-green-500 cursor-pointer h-1 bg-zinc-800 rounded-lg appearance-none"
+                  />
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs text-zinc-300 font-bold mb-1">
+                    <span>Gold Counter</span>
+                    <span className="text-yellow-400">{cheats.gold.toLocaleString()}g</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => updateCheat("gold", cheats.gold + 1000)}
+                      className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10px] px-2 py-1 rounded font-bold"
+                    >
+                      +1k
+                    </button>
+                    <button
+                      onClick={() => updateCheat("gold", cheats.gold + 50000)}
+                      className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10px] px-2 py-1 rounded font-bold"
+                    >
+                      +50k
+                    </button>
+                    <button
+                      onClick={() => updateCheat("gold", 100)}
+                      className="bg-red-950/50 hover:bg-red-900/50 text-red-300 text-[10px] px-2 py-1 rounded font-bold"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sliders 2 */}
+              <div className="space-y-3 bg-zinc-950/40 p-3 rounded-lg border border-zinc-800/40">
+                <span className="text-[10px] text-zinc-500 font-extrabold uppercase tracking-wider block mb-1">Movement Cheats</span>
+                <div>
+                  <div className="flex justify-between text-xs text-zinc-300 font-bold mb-1">
+                    <span>Movement Speed</span>
+                    <span className="text-green-400">{cheats.speedMultiplier.toFixed(1)}x</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="5"
+                    step="0.5"
+                    value={cheats.speedMultiplier}
+                    onChange={(e) => updateCheat("speedMultiplier", parseFloat(e.target.value))}
+                    className="w-full accent-green-500 cursor-pointer h-1 bg-zinc-800 rounded-lg appearance-none"
+                  />
+                </div>
+                <div className="text-[9px] text-zinc-500 leading-normal">
+                  Enjoy flying across the map and easily line-of-sight targets around pillars at 5x movement speed.
+                </div>
+              </div>
+
+              {/* Sliders 3 */}
+              <div className="space-y-3 bg-zinc-950/40 p-3 rounded-lg border border-zinc-800/40">
+                <span className="text-[10px] text-zinc-500 font-extrabold uppercase tracking-wider block mb-1">Damage Cheats</span>
+                <div>
+                  <div className="flex justify-between text-xs text-zinc-300 font-bold mb-1">
+                    <span>Damage Out</span>
+                    <span className="text-green-400">{cheats.damageMultiplier}x</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="100"
+                    step="5"
+                    value={cheats.damageMultiplier}
+                    onChange={(e) => updateCheat("damageMultiplier", parseInt(e.target.value))}
+                    className="w-full accent-green-500 cursor-pointer h-1 bg-zinc-800 rounded-lg appearance-none"
+                  />
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs text-zinc-300 font-bold mb-1">
+                    <span>Healing Out</span>
+                    <span className="text-green-400">{cheats.healingMultiplier}x</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="100"
+                    step="5"
+                    value={cheats.healingMultiplier}
+                    onChange={(e) => updateCheat("healingMultiplier", parseInt(e.target.value))}
+                    className="w-full accent-green-500 cursor-pointer h-1 bg-zinc-800 rounded-lg appearance-none"
+                  />
+                </div>
+              </div>
+
+            </div>
+          </Card>
+        )}
 
         {/* HUD Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
@@ -296,6 +664,42 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
           {/* Column 2 & 3: Main 3D Game Canvas Area */}
           <div className="lg:col-span-2 space-y-4">
             
+            {/* Highly Visible Match Lobby Invite Banner */}
+            {isMultiplayer && isHost && (
+              <Card className="border-cyan-500/30 bg-zinc-900/80 p-3 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow shadow-cyan-500/10">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-2.5 w-2.5 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
+                  </span>
+                  <p className="text-xs text-cyan-400 font-black tracking-wide uppercase">
+                    Lobby Code Active! Share with a friend:
+                  </p>
+                </div>
+                <div className="flex gap-2 w-full sm:w-auto items-center">
+                  <input
+                    type="text"
+                    readOnly
+                    value={typeof window !== "undefined" ? `${window.location.origin}?room=${roomId}` : ""}
+                    className="flex-1 sm:w-60 bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1 text-xs text-zinc-300 font-mono"
+                  />
+                  <button
+                    onClick={() => {
+                      if (typeof window !== "undefined") {
+                        navigator.clipboard.writeText(`${window.location.origin}?room=${roomId}`)
+                        setCopied(true)
+                        setTimeout(() => setCopied(false), 2000)
+                      }
+                    }}
+                    className="bg-cyan-500 hover:bg-cyan-400 text-zinc-950 px-3.5 py-1.5 rounded font-black text-xs uppercase flex items-center gap-1 transition-all shrink-0"
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copied ? "Copied" : "Copy Link"}
+                  </button>
+                </div>
+              </Card>
+            )}
+
             {/* 3D Game Scene */}
             <ArenaCanvasContainer 
               simulation={simulation} 

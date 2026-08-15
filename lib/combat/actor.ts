@@ -21,6 +21,14 @@ export class Actor {
   healingMultiplier: number = 1.0;
   selectedTalents: string[] = [];
 
+  // Cheat variables
+  isGodMode: boolean = false;
+  isNoCooldowns: boolean = false;
+  isInstantCast: boolean = false;
+  cheatSpeedMultiplier: number = 1.0;
+  gold: number = 100;
+  level: number = 1;
+
   resources: Record<ResourceType, number>;
   maxResources: Record<ResourceType, number>;
 
@@ -89,6 +97,10 @@ export class Actor {
   }
 
   spendResource(res: ResourceType, amount: number) {
+    if (this.isGodMode || this.isNoCooldowns) {
+      this.resources[res] = this.maxResources[res];
+      return;
+    }
     this.resources[res] = Math.max(0, this.resources[res] - amount);
   }
 
@@ -134,6 +146,7 @@ export class Actor {
   }
 
   takeDamage(amount: number, attacker: Actor, type: string): number {
+    if (this.isGodMode) return 0;
     if (this.health <= 0) return 0;
 
     let damage = amount;
@@ -212,7 +225,28 @@ export class Actor {
     this.animTimer = duration; // if duration > 0, state is temporary
   }
 
+  setCheatLevel(newLevel: number) {
+    this.level = newLevel;
+    const scaleFactor = 1 + (newLevel - 1) * 0.15;
+    const classKey = this.class.toLowerCase();
+    const classConf = (classesData as any)[classKey];
+    if (classConf) {
+      const oldMax = this.maxHealth;
+      this.maxHealth = Math.floor(classConf.maxHealth * scaleFactor);
+      this.health = Math.min(this.maxHealth, Math.floor(this.health * (this.maxHealth / oldMax)));
+    }
+  }
+
   update(deltaTime: number, simulationBoss: Actor | null = null) {
+    if (this.isNoCooldowns) {
+      this.cooldowns.clear();
+      this.gcdRemaining = 0;
+      // Keep resources filled
+      for (const res in this.resources) {
+        this.resources[res as ResourceType] = this.maxResources[res as ResourceType];
+      }
+    }
+
     if (this.health <= 0) {
       this.animState = "die";
       return;

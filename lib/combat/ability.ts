@@ -43,9 +43,9 @@ export abstract class Ability {
   // Verification
   canCast(caster: Actor, target: Actor | null, simulation?: any): boolean {
     if (this.requiresTarget && !target) return false;
-    if (caster.getCooldown(this.id) > 0) return false;
-    if (caster.currentResource(this.cost.resource) < this.cost.amount) return false;
-    if (caster.isCasting || caster.isGCDActive()) return false;
+    if (caster.getCooldown(this.id) > 0 && !caster.isNoCooldowns) return false;
+    if (caster.currentResource(this.cost.resource) < this.cost.amount && !caster.isNoCooldowns && !caster.isGodMode) return false;
+    if ((caster.isCasting || caster.isGCDActive()) && !caster.isNoCooldowns) return false;
     
     if (this.requiresTarget && target) {
       const distance = caster.position.distanceTo(target.position);
@@ -74,16 +74,28 @@ export abstract class Ability {
       return;
     }
     
-    caster.spendResource(this.cost.resource, this.cost.amount);
-    if (this.castTime > 0) {
-      caster.startCastTimer(this.name, this.castTime, () => {
+    if (!caster.isNoCooldowns && !caster.isGodMode) {
+      caster.spendResource(this.cost.resource, this.cost.amount);
+    }
+    
+    const finalCastTime = (caster.isNoCooldowns || caster.isInstantCast) ? 0 : this.castTime;
+    const finalCooldown = caster.isNoCooldowns ? 0 : this.cooldown;
+
+    if (finalCastTime > 0) {
+      caster.startCastTimer(this.name, finalCastTime, () => {
         this.execute(caster, target, simulation);
-        caster.triggerCooldown(this.id, this.cooldown);
+        if (finalCooldown > 0) {
+          caster.triggerCooldown(this.id, finalCooldown);
+        }
       });
     } else {
       this.execute(caster, target, simulation);
-      caster.triggerCooldown(this.id, this.cooldown);
-      caster.triggerGCD();
+      if (finalCooldown > 0) {
+        caster.triggerCooldown(this.id, finalCooldown);
+      }
+      if (!caster.isNoCooldowns) {
+        caster.triggerGCD();
+      }
     }
   }
 

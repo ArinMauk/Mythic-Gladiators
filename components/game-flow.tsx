@@ -16,6 +16,11 @@ import { useGame } from "@/lib/game-context"
 
 export function GameFlow() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("login")
+
+  useEffect(() => {
+    console.log(`=== [GameFlow] Screen Transition -> ${currentScreen} ===`)
+  }, [currentScreen])
+
   const { 
     isMultiplayer, setIsMultiplayer, 
     isHost, setIsHost, 
@@ -43,7 +48,7 @@ export function GameFlow() {
   }, [])
 
   const handleNext = (target?: Screen) => {
-    if (target) {
+    if (target && typeof target === "string") {
       setCurrentScreen(target)
       return
     }

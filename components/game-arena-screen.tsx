@@ -29,6 +29,7 @@ import { CombatSimulation } from "@/lib/combat/simulation"
 import { Actor } from "@/lib/combat/actor"
 import { getClassAbilities, Ability, applyTalentsToActor } from "@/lib/combat/ability"
 import ArenaCanvasContainer from "./arena-3d-canvas"
+import { ArenaErrorBoundary } from "./arena-error-boundary"
 import { MultiplayerManager } from "@/lib/multiplayer-manager"
 import { Copy, Check, Sliders, Wand2 } from "lucide-react"
 
@@ -92,11 +93,29 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
   // 1. Initialize the 3D Combat Simulation Engine (persists in ref)
   const simRef = useRef<CombatSimulation | null>(null)
   if (!simRef.current) {
-    const sim = new CombatSimulation(username, selectedClass || "warrior", selectedLevel || "level-1")
-    applyTalentsToActor(sim.playerActor, selectedTalents)
-    simRef.current = sim
+    console.log("=== [GameArenaScreen] Instantiating CombatSimulation ===", { username, selectedClass, selectedLevel });
+    try {
+      const sim = new CombatSimulation(username, selectedClass || "warrior", selectedLevel || "level-1")
+      console.log("=== [GameArenaScreen] Applying talents to player actor ===", selectedTalents);
+      applyTalentsToActor(sim.playerActor, selectedTalents)
+      simRef.current = sim
+      console.log("=== [GameArenaScreen] CombatSimulation Initialized Successfully! ===", {
+        actors: sim.actors.map(a => ({ id: a.id, name: a.name, faction: a.faction, class: a.class })),
+        obstacles: sim.obstacles.length
+      });
+    } catch (err) {
+      console.error("=== [GameArenaScreen] CRITICAL ERROR IN COMBAT SIMULATION CONSTRUCTOR ===", err);
+      throw err;
+    }
   }
   const simulation = simRef.current
+
+  useEffect(() => {
+    console.log("=== [GameArenaScreen] Mounted ===")
+    return () => {
+      console.log("=== [GameArenaScreen] Unmounted ===")
+    }
+  }, [])
 
   const player = simulation.playerActor
   const boss = simulation.bossActor
@@ -701,10 +720,12 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
             )}
 
             {/* 3D Game Scene */}
-            <ArenaCanvasContainer 
-              simulation={simulation} 
-              onSelectTarget={(actor) => setSelectedTarget(actor)} 
-            />
+            <ArenaErrorBoundary>
+              <ArenaCanvasContainer 
+                simulation={simulation} 
+                onSelectTarget={(actor) => setSelectedTarget(actor)} 
+              />
+            </ArenaErrorBoundary>
 
             {/* Dynamic Real-time Cast Bar overlay */}
             {player.isCasting && (

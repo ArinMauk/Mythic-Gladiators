@@ -17,6 +17,8 @@ export class MultiplayerManager {
   PeerClass: any = null;
   onStatusChange: (status: string) => void;
   onPeerConnect?: (peerId: string, username: string) => void;
+  onLevelChange?: (level: any) => void;
+  onStartMatch?: (level: any) => void;
 
   constructor(
     simulation: CombatSimulation,
@@ -248,6 +250,19 @@ export class MultiplayerManager {
 
   handleClientReceivedData(conn: any, data: any) {
     switch (data.type) {
+      case "LOBBY_LEVEL_CHANGE": {
+        if (data.level && this.onLevelChange) {
+          this.onLevelChange(data.level);
+        }
+        break;
+      }
+      case "START_MATCH": {
+        if (data.level && this.onStartMatch) {
+          this.onStartMatch(data.level);
+        }
+        break;
+      }
+
       case "HOST_UPDATE": {
         // Synchronize entire simulation state
         data.actors.forEach((hostActor: any) => {
@@ -545,6 +560,28 @@ export class MultiplayerManager {
 
   updateLocalCheats(newCheats: any) {
     this.cheats = newCheats;
+  }
+
+  broadcastLevelChange(level: string) {
+    this.connections.forEach((conn) => {
+      if (conn.open) {
+        conn.send({
+          type: "LOBBY_LEVEL_CHANGE",
+          level: level
+        });
+      }
+    });
+  }
+
+  broadcastStartMatch(level: string) {
+    this.connections.forEach((conn) => {
+      if (conn.open) {
+        conn.send({
+          type: "START_MATCH",
+          level: level
+        });
+      }
+    });
   }
 
   destroy() {

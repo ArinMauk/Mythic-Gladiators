@@ -82,6 +82,7 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
     companionType,
     gameMode,
     selectedLevel,
+    setSelectedLevel,
     selectedTalents,
     isMultiplayer,
     isHost,
@@ -90,8 +91,31 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
     updateCheat
   } = useGame()
   
-  // 1. Initialize the 3D Combat Simulation Engine (persists in ref)
+  const [matchStarted, setMatchStarted] = useState(!isMultiplayer)
   const simRef = useRef<CombatSimulation | null>(null)
+
+  const handleLevelChange = (level: "level-1" | "level-2") => {
+    setSelectedLevel(level)
+    const sim = new CombatSimulation(username, selectedClass || "warrior", level)
+    applyTalentsToActor(sim.playerActor, selectedTalents)
+    simRef.current = sim
+    if (multiplayerRef.current) {
+      multiplayerRef.current.simulation = sim
+    }
+  }
+
+  const handleStartMatch = (level: "level-1" | "level-2") => {
+    setSelectedLevel(level)
+    const sim = new CombatSimulation(username, selectedClass || "warrior", level)
+    applyTalentsToActor(sim.playerActor, selectedTalents)
+    simRef.current = sim
+    if (multiplayerRef.current) {
+      multiplayerRef.current.simulation = sim
+    }
+    setMatchStarted(true)
+  }
+
+  // 1. Initialize the 3D Combat Simulation Engine (persists in ref)
   if (!simRef.current) {
     console.log("=== [GameArenaScreen] Instantiating CombatSimulation ===", { username, selectedClass, selectedLevel });
     try {
@@ -206,6 +230,16 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
       PeerClass,
       (status: string) => setNetworkStatus(status)
     )
+
+    manager.onLevelChange = (level) => {
+      console.log("=== [Lobby] Client received level change: " + level + " ===");
+      handleLevelChange(level);
+    };
+
+    manager.onStartMatch = (level) => {
+      console.log("=== [Lobby] Client received start match signal for: " + level + " ===");
+      handleStartMatch(level);
+    };
 
     multiplayerRef.current = manager
 
@@ -719,13 +753,155 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
               </Card>
             )}
 
-            {/* 3D Game Scene */}
-            <ArenaErrorBoundary>
-              <ArenaCanvasContainer 
-                simulation={simulation} 
-                onSelectTarget={(actor) => setSelectedTarget(actor)} 
-              />
-            </ArenaErrorBoundary>
+            {/* 3D Game Scene / Waiting Lobby */}
+            {isMultiplayer && !matchStarted ? (
+              <div className="w-full h-[550px] bg-zinc-900 border border-zinc-800/80 rounded-lg p-6 flex flex-col justify-between relative shadow-2xl overflow-hidden select-none">
+                <div className="absolute top-0 right-0 bg-cyan-500/10 text-cyan-400 border-l border-b border-cyan-500/20 px-3 py-1 text-[10px] font-black tracking-widest uppercase">
+                  P2P Matchmaking Lobby
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-lg font-black text-cyan-400 uppercase tracking-widest flex items-center gap-2">
+                      <Users className="w-5 h-5 animate-pulse" />
+                      Gladiator Co-Op Room
+                    </h3>
+                    <p className="text-xs text-zinc-400">Invite friends using the code or link below. When they join, they'll appear in the party list.</p>
+                  </div>
+
+                  {/* Connection Code Display */}
+                  <div className="bg-zinc-950/60 p-3 rounded-lg border border-zinc-800/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="font-bold text-zinc-400">Room Code:</span>
+                      <span className="font-mono text-cyan-300 font-bold bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800">{roomId}</span>
+                    </div>
+                    <div className="flex gap-2 w-full sm:w-auto items-center">
+                      <input
+                        type="text"
+                        readOnly
+                        value={typeof window !== "undefined" ? `${window.location.origin}?room=${roomId}` : ""}
+                        className="flex-1 sm:w-60 bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1 text-xs text-zinc-300 font-mono"
+                      />
+                      <button
+                        onClick={() => {
+                          if (typeof window !== "undefined") {
+                            navigator.clipboard.writeText(`${window.location.origin}?room=${roomId}`)
+                            setCopied(true)
+                            setTimeout(() => setCopied(false), 2000)
+                          }
+                        }}
+                        className="bg-cyan-500 hover:bg-cyan-400 text-zinc-950 px-3 py-1 rounded font-black text-xs uppercase flex items-center gap-1 transition-all shrink-0 cursor-pointer"
+                      >
+                        {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                        {copied ? "Copied" : "Copy Link"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Connected Gladiators List */}
+                  <div className="space-y-2">
+                    <span className="text-[10px] text-zinc-500 font-extrabold uppercase tracking-wider block">Connected Gladiators ({party.length})</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {party.map((act) => {
+                        const Icon = classIcons[act.class] || Shield
+                        return (
+                          <div key={act.id} className="flex items-center gap-2 bg-zinc-950/40 border border-zinc-800/60 rounded px-3 py-2">
+                            <Icon className={cn("w-4 h-4", classColors[act.class])} />
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-zinc-200 truncate">{act.name}</p>
+                              <p className="text-[9px] text-zinc-500 uppercase font-medium">{act.class}</p>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Level Selection Section */}
+                  <div className="border-t border-zinc-800/60 pt-4 space-y-3">
+                    <span className="text-[10px] text-zinc-500 font-extrabold uppercase tracking-wider block">Encounter Target Level</span>
+                    {isHost ? (
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => {
+                            handleLevelChange("level-1");
+                            if (multiplayerRef.current) {
+                              multiplayerRef.current.broadcastLevelChange("level-1");
+                            }
+                          }}
+                          className={cn(
+                            "flex-1 p-3 rounded-lg border-2 text-left transition-all cursor-pointer",
+                            selectedLevel === "level-1"
+                              ? "bg-amber-500/10 border-amber-500/60 text-amber-400"
+                              : "bg-zinc-950/20 border-zinc-800 hover:bg-zinc-950/40"
+                          )}
+                        >
+                          <p className="text-xs font-black uppercase">Level 1: Evil Raid Boss</p>
+                          <p className="text-[9px] text-zinc-400 mt-0.5">Classic PVE boss raid trial with destructive fires.</p>
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleLevelChange("level-2");
+                            if (multiplayerRef.current) {
+                              multiplayerRef.current.broadcastLevelChange("level-2");
+                            }
+                          }}
+                          className={cn(
+                            "flex-1 p-3 rounded-lg border-2 text-left transition-all cursor-pointer",
+                            selectedLevel === "level-2"
+                              ? "bg-red-500/10 border-red-500/60 text-red-400"
+                              : "bg-zinc-950/20 border-zinc-800 hover:bg-zinc-950/40"
+                          )}
+                        >
+                          <p className="text-xs font-black uppercase">Level 2: Gladiator Skirmish</p>
+                          <p className="text-[9px] text-zinc-400 mt-0.5">Tactical team fight trial against enemy gladiator AI.</p>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="bg-zinc-950/50 border border-zinc-800 p-3 rounded-lg text-xs text-zinc-300">
+                        Host is selecting... Currently: <span className="font-bold text-cyan-300 uppercase">{selectedLevel === "level-1" ? "Level 1: Evil Raid Boss" : "Level 2: Gladiator Skirmish"}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Matchmaking status / Launcher */}
+                <div className="border-t border-zinc-800/60 pt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                    </span>
+                    <span className="text-xs font-mono text-zinc-400 font-bold">{networkStatus}</span>
+                  </div>
+
+                  {isHost ? (
+                    <button
+                      onClick={() => {
+                        handleStartMatch(selectedLevel);
+                        if (multiplayerRef.current) {
+                          multiplayerRef.current.broadcastStartMatch(selectedLevel);
+                        }
+                      }}
+                      className="px-6 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-zinc-950 text-xs font-black tracking-widest uppercase rounded shadow-lg shadow-cyan-500/20 cursor-pointer"
+                    >
+                      Launch Gladiator Arena
+                    </button>
+                  ) : (
+                    <span className="text-xs font-black tracking-widest uppercase text-cyan-400 animate-pulse">
+                      Waiting for Host to Launch...
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <ArenaErrorBoundary>
+                <ArenaCanvasContainer 
+                  simulation={simulation} 
+                  onSelectTarget={(actor) => setSelectedTarget(actor)} 
+                />
+              </ArenaErrorBoundary>
+            )}
 
             {/* Dynamic Real-time Cast Bar overlay */}
             {player.isCasting && (

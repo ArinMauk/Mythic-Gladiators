@@ -64,15 +64,19 @@ export function GameFlow() {
         setCurrentScreen("skill-selection")
         break
       case "skill-selection":
-        setCurrentScreen("level-selection")
+        if (companionType === "players" || isMultiplayer) {
+          if (!isMultiplayer) {
+            setIsMultiplayer(true)
+            setIsHost(true)
+            const randomCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+            setRoomId(randomCode)
+          }
+          setCurrentScreen("game")
+        } else {
+          setCurrentScreen("level-selection")
+        }
         break
       case "level-selection":
-        if (companionType === "players" && !isMultiplayer) {
-          setIsMultiplayer(true)
-          setIsHost(true)
-          const randomCode = Math.random().toString(36).substring(2, 8).toUpperCase()
-          setRoomId(randomCode)
-        }
         setCurrentScreen("game")
         break
     }

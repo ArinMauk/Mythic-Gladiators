@@ -3,6 +3,7 @@ import { Actor } from "./combat/actor";
 import { CustomAbility } from "./combat/ability";
 import abilitiesData from "./combat/data/abilities.json";
 import * as THREE from "three";
+import { LobbyPlayer } from "./combat/types";
 
 export class MultiplayerManager {
   peer: any = null;
@@ -19,7 +20,7 @@ export class MultiplayerManager {
   onPeerConnect?: (peerId: string, username: string) => void;
   onLevelChange?: (level: any) => void;
   onStartMatch?: (level: any) => void;
-  onLobbyPlayersUpdate?: (players: any[]) => void;
+  onLobbyPlayersUpdate?: (players: LobbyPlayer[]) => void;
 
   constructor(
     simulation: CombatSimulation,
@@ -54,15 +55,13 @@ export class MultiplayerManager {
     const peerId = this.isHost ? `mg-${this.roomId}` : undefined;
 
     try {
+      const isDev = process.env.NODE_ENV === "development";
       this.peer = new this.PeerClass(peerId, {
-        debug: 3,
+        debug: isDev ? 3 : 0,
         config: {
           iceServers: [
             { urls: "stun:stun.l.google.com:19302" },
             { urls: "stun:stun1.l.google.com:19302" },
-            { urls: "stun:stun2.l.google.com:19302" },
-            { urls: "stun:stun3.l.google.com:19302" },
-            { urls: "stun:stun4.l.google.com:19302" },
           ]
         }
       });
@@ -105,13 +104,19 @@ export class MultiplayerManager {
   handleConnection(conn: any) {
     this.onStatusChange("Establishing secure WebRTC channel...");
 
-    console.log("[P2P] DataConnection created", {
-      peer: conn.peer,
-      open: conn.open,
-    });
+    const isDev = process.env.NODE_ENV === "development";
+
+    if (isDev) {
+      console.log("[P2P] DataConnection created", {
+        peer: conn.peer,
+        open: conn.open,
+      });
+    }
 
     conn.on("open", () => {
-      console.log("[P2P] DATA CHANNEL OPEN", conn.peer);
+      if (isDev) {
+        console.log("[P2P] DATA CHANNEL OPEN", conn.peer);
+      }
       this.onStatusChange(this.isHost ? "Player connected! Synced." : "Joined Match! Loading arena...");
       
       if (!this.isHost) {
@@ -131,11 +136,11 @@ export class MultiplayerManager {
     });
 
     conn.on("error", (err: any) => {
-      console.error("[P2P] DataConnection error", err);
+      console.error("[P2P] DataConnection error:", err);
     });
 
     const pc = conn.peerConnection;
-    if (pc) {
+    if (pc && isDev) {
       console.log("[P2P] Attached ICE event listeners for peer:", conn.peer);
       pc.addEventListener("iceconnectionstatechange", () => {
         console.log("[P2P] ICE connection state:", pc.iceConnectionState);
@@ -171,10 +176,6 @@ export class MultiplayerManager {
       this.simulation.actors = this.simulation.actors.filter((a) => a.id !== peerActorId);
       this.simulation.log(`A gladiator has left the arena.`);
     });
-
-    conn.on("error", (err: any) => {
-      console.error("Connection error:", err);
-    });
   }
 
   handleHostReceivedData(conn: any, data: any) {
@@ -205,11 +206,6 @@ export class MultiplayerManager {
         }
 
         // Add player to Host's simulation
-        const faction = this.simulation.selectedLevel === "level-1" && this.simulation.actors[0].faction === "player" && this.simulation.bossActor.faction === "enemy" && this.simulation.actors.length === 2 && this.simulation.bossActor.id !== "user" && data.cheats?.level ? "enemy" : "player"; 
-        
-        // Let's check gameMode for PvP:
-        const isPvPDuel = this.simulation.bossActor.id === "user" || data.cheats?.level !== undefined && this.simulation.actors.some(a => a.id === "user"); 
-        
         const clientFaction = this.simulation.selectedLevel === "level-1" && this.simulation.actors.length >= 2 && this.simulation.actors.some(a => a.id === "user" && a.faction === "player") && this.simulation.actors.some(a => a.id !== "user" && a.faction === "enemy") && !this.simulation.actors.some(a => a.id !== "user" && a.faction === "player" && !a.isUser)
           ? "enemy" 
           : "player";
@@ -218,14 +214,6 @@ export class MultiplayerManager {
 
         const role = data.class === "priest" ? "healer" : "damage";
         const spawnPos = new THREE.Vector3(this.isHost ? -8 : 8, 0, this.isHost ? -8 : 8);
-        
-        // PvP Mode Override
-        let actualFaction = clientFaction;
-        if (this.simulation.selectedLevel === "level-1") {
-          // If level-1, look if we are playing PvP. In game context, gameMode will decide.
-          // We can set client faction to opposite team if gameMode is pvp.
-          const isPvP = this.simulation.bossActor.id === "user" || this.simulation.actors.some(a => a.id === "user" && a.faction === "player") && this.simulation.actors.some(a => a.id !== "user" && a.faction === "enemy");
-        }
 
         // Let's create the client's actor
         const clientActor = new Actor(
@@ -641,7 +629,7 @@ export class MultiplayerManager {
   }
 
   broadcastLobbyPlayers() {
-    const list = [
+    const list: LobbyPlayer[] = [
       { peerId: "host", username: this.myUsername, class: this.myClass, isHost: true },
       ...this.connections.map(c => ({
         peerId: c.peer,

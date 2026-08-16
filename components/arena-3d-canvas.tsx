@@ -50,13 +50,6 @@ const classIcons: Record<string, React.ComponentType<{ className?: string }>> = 
 function CameraRig({ player, simulation, onSelectTarget }: { player: Actor; simulation: CombatSimulation; onSelectTarget: (actor: Actor | null) => void }) {
   const { camera, gl } = useThree();
   
-  useEffect(() => {
-    console.log("=== [CameraRig] Mounted ===")
-    return () => {
-      console.log("=== [CameraRig] Unmounted ===")
-    }
-  }, [])
-
   // Camera state
   const camRadiusRef = useRef<number>(14);
   const camThetaRef = useRef<number>(Math.PI); // Horizontal angle (around Y)
@@ -454,13 +447,6 @@ function ObstacleMesh({ obstacle }: { obstacle: any }) {
 
 // 7. Arena World (Static Ground, Pillars, Lighting)
 function ArenaWorld() {
-  useEffect(() => {
-    console.log("=== [ArenaWorld] Mounted ===")
-    return () => {
-      console.log("=== [ArenaWorld] Unmounted ===")
-    }
-  }, [])
-
   return (
     <>
       <ambientLight intensity={1.2} />
@@ -512,21 +498,8 @@ function ArenaWorld() {
 
 // Main Canvas Wrapper
 export function Arena3DCanvas({ simulation, onSelectTarget }: Arena3DCanvasProps) {
-  useEffect(() => {
-    console.log("=== [Arena3DCanvas] Mounted ===")
-    return () => {
-      console.log("=== [Arena3DCanvas] Unmounted ===")
-    }
-  }, [])
-
-  const hasLoggedFrame = useRef(false);
-
   // High frequency 60 FPS update of simulation coordinates
   useFrame((_state, delta) => {
-    if (!hasLoggedFrame.current) {
-      console.log("=== [Arena3DCanvas] First useFrame execution! Render loop active ===");
-      hasLoggedFrame.current = true;
-    }
     // Clamp delta to prevent huge jumps when tab transitions
     const clampedDelta = Math.min(delta, 0.1);
     try {
@@ -594,13 +567,6 @@ export function Arena3DCanvas({ simulation, onSelectTarget }: Arena3DCanvasProps
 }
 
 export default function ArenaCanvasContainer(props: Arena3DCanvasProps) {
-  useEffect(() => {
-    console.log("=== [ArenaCanvasContainer] Mounted ===")
-    return () => {
-      console.log("=== [ArenaCanvasContainer] Unmounted ===")
-    }
-  }, [])
-
   return (
     <div className="w-full h-[550px] bg-zinc-950 relative overflow-hidden rounded-lg border border-border/80 shadow-2xl">
       <Canvas shadows camera={{ fov: 45, near: 0.1, far: 1000 }}>

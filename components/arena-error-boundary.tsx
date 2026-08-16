@@ -42,7 +42,7 @@ export class ArenaErrorBoundary extends Component<Props, State> {
             onClick={() => this.setState({ hasError: false, error: null })}
             className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase rounded transition-all shadow-lg shadow-red-600/20 pointer-events-auto cursor-pointer"
           >
-            Attempt Reconnect / Reload
+            Try Again
           </button>
         </div>
       )

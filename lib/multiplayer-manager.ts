@@ -19,6 +19,7 @@ export class MultiplayerManager {
   onPeerConnect?: (peerId: string, username: string) => void;
   onLevelChange?: (level: any) => void;
   onStartMatch?: (level: any) => void;
+  onLobbyPlayersUpdate?: (players: any[]) => void;
 
   constructor(
     simulation: CombatSimulation,
@@ -54,7 +55,16 @@ export class MultiplayerManager {
 
     try {
       this.peer = new this.PeerClass(peerId, {
-        debug: 1,
+        debug: 3,
+        config: {
+          iceServers: [
+            { urls: "stun:stun.l.google.com:19302" },
+            { urls: "stun:stun1.l.google.com:19302" },
+            { urls: "stun:stun2.l.google.com:19302" },
+            { urls: "stun:stun3.l.google.com:19302" },
+            { urls: "stun:stun4.l.google.com:19302" },
+          ]
+        }
       });
 
       this.peer.on("open", (id: string) => {
@@ -95,7 +105,13 @@ export class MultiplayerManager {
   handleConnection(conn: any) {
     this.onStatusChange("Establishing secure WebRTC channel...");
 
+    console.log("[P2P] DataConnection created", {
+      peer: conn.peer,
+      open: conn.open,
+    });
+
     conn.on("open", () => {
+      console.log("[P2P] DATA CHANNEL OPEN", conn.peer);
       this.onStatusChange(this.isHost ? "Player connected! Synced." : "Joined Match! Loading arena...");
       
       if (!this.isHost) {
@@ -110,8 +126,27 @@ export class MultiplayerManager {
         });
       } else {
         this.connections.push(conn);
+        this.broadcastLobbyPlayers();
       }
     });
+
+    conn.on("error", (err: any) => {
+      console.error("[P2P] DataConnection error", err);
+    });
+
+    const pc = conn.peerConnection;
+    if (pc) {
+      console.log("[P2P] Attached ICE event listeners for peer:", conn.peer);
+      pc.addEventListener("iceconnectionstatechange", () => {
+        console.log("[P2P] ICE connection state:", pc.iceConnectionState);
+      });
+      pc.addEventListener("connectionstatechange", () => {
+        console.log("[P2P] Peer connection state:", pc.connectionState);
+      });
+      pc.addEventListener("icegatheringstatechange", () => {
+        console.log("[P2P] ICE gathering state:", pc.iceGatheringState);
+      });
+    }
 
     conn.on("data", (data: any) => {
       if (!data || !data.type) return;
@@ -127,6 +162,10 @@ export class MultiplayerManager {
       this.connections = this.connections.filter((c) => c.peer !== conn.peer);
       this.onStatusChange(this.isHost ? "Gladiator disconnected." : "Disconnected from match.");
       
+      if (this.isHost) {
+        this.broadcastLobbyPlayers();
+      }
+
       // Remove peer actor from simulation
       const peerActorId = conn.peer;
       this.simulation.actors = this.simulation.actors.filter((a) => a.id !== peerActorId);
@@ -143,6 +182,17 @@ export class MultiplayerManager {
 
     switch (data.type) {
       case "CLIENT_JOIN": {
+        // Store join data on the connection object for the lobby state
+        conn.lobbyData = {
+          username: data.username,
+          class: data.class,
+          talents: data.talents,
+          cheats: data.cheats
+        };
+
+        // Broadcast updated lobby player list to all clients
+        this.broadcastLobbyPlayers();
+
         // Remove an AI companion to keep party size balanced (PvE mode only)
         if (this.simulation.selectedLevel === "level-2" || this.simulation.actors.length > 2) {
           const aiCompanions = this.simulation.actors.filter((a) => a.faction === "player" && !a.isUser && a.id !== peerId && !this.connections.some(c => c.peer === a.id));
@@ -259,6 +309,12 @@ export class MultiplayerManager {
       case "START_MATCH": {
         if (data.level && this.onStartMatch) {
           this.onStartMatch(data.level);
+        }
+        break;
+      }
+      case "LOBBY_PLAYERS_UPDATE": {
+        if (data.players && this.onLobbyPlayersUpdate) {
+          this.onLobbyPlayersUpdate(data.players);
         }
         break;
       }
@@ -582,6 +638,29 @@ export class MultiplayerManager {
         });
       }
     });
+  }
+
+  broadcastLobbyPlayers() {
+    const list = [
+      { peerId: "host", username: this.myUsername, class: this.myClass, isHost: true },
+      ...this.connections.map(c => ({
+        peerId: c.peer,
+        username: c.lobbyData?.username || "Guest",
+        class: c.lobbyData?.class || "warrior",
+        isHost: false
+      }))
+    ];
+    this.connections.forEach(conn => {
+      if (conn.open) {
+        conn.send({
+          type: "LOBBY_PLAYERS_UPDATE",
+          players: list
+        });
+      }
+    });
+    if (this.onLobbyPlayersUpdate) {
+      this.onLobbyPlayersUpdate(list);
+    }
   }
 
   destroy() {

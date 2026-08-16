@@ -25,6 +25,7 @@ import {
   LucideProps
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import * as THREE from "three"
 import { CombatSimulation } from "@/lib/combat/simulation"
 import { Actor } from "@/lib/combat/actor"
 import { getClassAbilities, Ability, applyTalentsToActor } from "@/lib/combat/ability"
@@ -92,27 +93,63 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
   } = useGame()
   
   const [matchStarted, setMatchStarted] = useState(!isMultiplayer)
+  const [lobbyPlayers, setLobbyPlayers] = useState<any[]>([
+    { peerId: isHost ? "host" : "client", username, class: selectedClass || "warrior", isHost }
+  ])
   const simRef = useRef<CombatSimulation | null>(null)
 
   const handleLevelChange = (level: "level-1" | "level-2") => {
     setSelectedLevel(level)
-    const sim = new CombatSimulation(username, selectedClass || "warrior", level)
-    applyTalentsToActor(sim.playerActor, selectedTalents)
-    simRef.current = sim
-    if (multiplayerRef.current) {
-      multiplayerRef.current.simulation = sim
-    }
   }
 
   const handleStartMatch = (level: "level-1" | "level-2") => {
-    setSelectedLevel(level)
-    const sim = new CombatSimulation(username, selectedClass || "warrior", level)
-    applyTalentsToActor(sim.playerActor, selectedTalents)
-    simRef.current = sim
+    console.log("=== [Lobby] Launching Battle Simulation ===", { level });
+    setSelectedLevel(level);
+
+    // Create the final clean CombatSimulation with the chosen level
+    const sim = new CombatSimulation(username, selectedClass || "warrior", level);
+    applyTalentsToActor(sim.playerActor, selectedTalents);
+
+    // Populate actual co-op players from lobbyPlayers roster
+    lobbyPlayers.forEach((lp) => {
+      // Avoid adding the client's local user (which is already simulation.playerActor / 'user')
+      const isLpLocalUser = lp.peerId === "client" || (lp.isHost && isHost) || (lp.peerId !== "host" && multiplayerRef.current?.peer?.id === lp.peerId);
+      
+      if (!isLpLocalUser) {
+        // Remove an AI companion to keep party size balanced
+        if (level === "level-2" || sim.actors.length > 2) {
+          const aiCompanions = sim.actors.filter((a) => a.faction === "player" && !a.isUser);
+          if (aiCompanions.length > 0) {
+            sim.actors = sim.actors.filter((a) => a.id !== aiCompanions[0].id);
+          }
+        }
+
+        const id = lp.isHost ? "host_player" : lp.peerId;
+        const role = lp.class === "priest" ? "healer" : "damage";
+        
+        // Spawn them slightly offset
+        const spawnPos = new THREE.Vector3(lp.isHost ? -8 : 8, 0, lp.isHost ? -8 : 8);
+
+        const peerActor = new Actor(
+          id,
+          lp.username,
+          lp.class,
+          "player", // same player faction
+          role,
+          spawnPos,
+          false
+        );
+        sim.actors.push(peerActor);
+        console.log(`=== [Lobby] Spawning connected gladiator actor: ${lp.username} as ${id} ===`);
+      }
+    });
+
+    simRef.current = sim;
     if (multiplayerRef.current) {
-      multiplayerRef.current.simulation = sim
+      multiplayerRef.current.simulation = sim;
     }
-    setMatchStarted(true)
+
+    setMatchStarted(true);
   }
 
   // 1. Initialize the 3D Combat Simulation Engine (persists in ref)
@@ -241,16 +278,12 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
       handleStartMatch(level);
     };
 
-    multiplayerRef.current = manager
+    manager.onLobbyPlayersUpdate = (players) => {
+      console.log("=== [Lobby] Players updated: ===", players);
+      setLobbyPlayers(players);
+    };
 
-    if (isHost) {
-      simulation.onVisualEffectSpawn = (type, pos, target, color, size, duration) => {
-        manager.broadcastVisualEffect(type, pos, color, size, duration)
-      }
-      simulation.onFloatingTextSpawn = (text, pos, color, isCrit) => {
-        manager.broadcastFloatingText(text, pos, color, isCrit)
-      }
-    }
+    multiplayerRef.current = manager
 
     // High frequency state tick
     const syncInterval = setInterval(() => {
@@ -260,8 +293,26 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
     return () => {
       clearInterval(syncInterval)
       manager.destroy()
+      multiplayerRef.current = null
     }
-  }, [isMultiplayer, isHost, roomId, username, selectedClass, selectedTalents, simulation, PeerClass])
+  }, [isMultiplayer, isHost, roomId, username, selectedClass, selectedTalents, PeerClass])
+
+  // Synchronize dynamic CombatSimulation reference to WebRTC manager
+  useEffect(() => {
+    if (multiplayerRef.current) {
+      multiplayerRef.current.simulation = simulation
+      
+      // Also bind the visual effect callbacks on Host
+      if (isHost) {
+        simulation.onVisualEffectSpawn = (type, pos, target, color, size, duration) => {
+          multiplayerRef.current?.broadcastVisualEffect(type, pos, color, size, duration)
+        }
+        simulation.onFloatingTextSpawn = (text, pos, color, isCrit) => {
+          multiplayerRef.current?.broadcastFloatingText(text, pos, color, isCrit)
+        }
+      }
+    }
+  }, [simulation, isHost])
 
   // Update multiplayer cheats on change
   useEffect(() => {
@@ -800,15 +851,15 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
 
                   {/* Connected Gladiators List */}
                   <div className="space-y-2">
-                    <span className="text-[10px] text-zinc-500 font-extrabold uppercase tracking-wider block">Connected Gladiators ({party.length})</span>
+                    <span className="text-[10px] text-zinc-500 font-extrabold uppercase tracking-wider block">Connected Gladiators ({lobbyPlayers.length})</span>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {party.map((act) => {
+                      {lobbyPlayers.map((act) => {
                         const Icon = classIcons[act.class] || Shield
                         return (
-                          <div key={act.id} className="flex items-center gap-2 bg-zinc-950/40 border border-zinc-800/60 rounded px-3 py-2">
-                            <Icon className={cn("w-4 h-4", classColors[act.class])} />
+                          <div key={act.peerId} className="flex items-center gap-2 bg-zinc-950/40 border border-zinc-800/60 rounded px-3 py-2">
+                            <Icon className={cn("w-4 h-4", classColors[act.class] || "text-zinc-400")} />
                             <div className="min-w-0">
-                              <p className="text-xs font-bold text-zinc-200 truncate">{act.name}</p>
+                              <p className="text-xs font-bold text-zinc-200 truncate">{act.username}</p>
                               <p className="text-[9px] text-zinc-500 uppercase font-medium">{act.class}</p>
                             </div>
                           </div>

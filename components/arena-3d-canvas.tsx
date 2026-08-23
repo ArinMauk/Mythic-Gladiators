@@ -147,6 +147,8 @@ function CameraRig({ player, simulation, onSelectTarget }: { player: Actor; simu
   }, [gl, player, simulation, onSelectTarget]);
 
   useFrame((state, delta) => {
+    if (!player || !player.position || !player.stats) return;
+    
     // 2. Position camera relative to player position
     const radius = camRadiusRef.current;
     const theta = camThetaRef.current;
@@ -166,7 +168,7 @@ function CameraRig({ player, simulation, onSelectTarget }: { player: Actor; simu
     if (keys["d"]) move.add(right.clone().negate()); // Flipped: D goes right, A goes left relative to camera
 
     if (move.lengthSq() > 0) {
-      move.normalize().multiplyScalar(player.stats.speed);
+      move.normalize().multiplyScalar(player.stats.speed * (player.cheatSpeedMultiplier || 1.0));
       player.velocity.copy(move);
 
       // WoW-style orientation:
@@ -215,43 +217,48 @@ function ActorMesh({ actor, isTargeted, onSelect }: ActorMeshProps) {
   
   // Bobbing animation for movement
   useFrame((state) => {
-    if (groupRef.current) {
-      groupRef.current.position.copy(actor.position);
-    }
-    if (!meshRef.current) return;
-    
-    // Death rotation
-    if (actor.health <= 0) {
-      meshRef.current.rotation.z = Math.PI / 2;
-      meshRef.current.position.y = -0.4;
-      return;
-    }
+    try {
+      if (!actor || !actor.position) return;
+      if (groupRef.current) {
+        groupRef.current.position.copy(actor.position);
+      }
+      if (!meshRef.current) return;
+      
+      // Death rotation
+      if (actor.health <= 0) {
+        meshRef.current.rotation.z = Math.PI / 2;
+        meshRef.current.position.y = -0.4;
+        return;
+      }
 
-    meshRef.current.position.y = 0;
-    meshRef.current.rotation.z = 0;
+      meshRef.current.position.y = 0;
+      meshRef.current.rotation.z = 0;
 
-    // Yaw rotation
-    meshRef.current.rotation.y = actor.yaw;
+      // Yaw rotation
+      meshRef.current.rotation.y = actor.yaw || 0;
 
-    // Movement bobs
-    if (actor.velocity.lengthSq() > 0.05) {
-      const bob = Math.sin(state.clock.getElapsedTime() * 12) * 0.15;
-      meshRef.current.position.y = Math.abs(bob);
-      // Lean forward slightly
-      meshRef.current.rotation.x = 0.15;
-    } else {
-      meshRef.current.rotation.x = 0;
-    }
+      // Movement bobs
+      if (actor.velocity && actor.velocity.lengthSq() > 0.05) {
+        const bob = Math.sin(state.clock.getElapsedTime() * 12) * 0.15;
+        meshRef.current.position.y = Math.abs(bob);
+        // Lean forward slightly
+        meshRef.current.rotation.x = 0.15;
+      } else {
+        meshRef.current.rotation.x = 0;
+      }
 
-    // Hit animation tilt
-    if (actor.animState === "get_hit") {
-      meshRef.current.rotation.x = -0.3;
-    }
+      // Hit animation tilt
+      if (actor.animState === "get_hit") {
+        meshRef.current.rotation.x = -0.3;
+      }
 
-    // Casting raise animation
-    if (actor.isCasting) {
-      // gentle wobble
-      meshRef.current.rotation.z = Math.sin(state.clock.getElapsedTime() * 15) * 0.05;
+      // Casting raise animation
+      if (actor.isCasting) {
+        // gentle wobble
+        meshRef.current.rotation.z = Math.sin(state.clock.getElapsedTime() * 15) * 0.05;
+      }
+    } catch (err) {
+      console.error("Error animating ActorMesh:", err);
     }
   });
 
@@ -491,15 +498,17 @@ function ArenaWorld() {
 
 // Main Canvas Wrapper
 export function Arena3DCanvas({ simulation, onSelectTarget }: Arena3DCanvasProps) {
-  const [, setTick] = useState(0);
-
   // High frequency 60 FPS update of simulation coordinates
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     // Clamp delta to prevent huge jumps when tab transitions
     const clampedDelta = Math.min(delta, 0.1);
-    simulation.update(clampedDelta);
-    // Force a React state update for high-frequency coordinate bindings
-    setTick(t => t + 1);
+    try {
+      if (simulation && typeof simulation.update === "function") {
+        simulation.update(clampedDelta);
+      }
+    } catch (err) {
+      console.error("Error in high-frequency simulation update:", err);
+    }
   });
 
   const player = simulation.playerActor;

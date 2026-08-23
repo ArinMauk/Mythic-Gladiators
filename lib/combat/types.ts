@@ -46,3 +46,10 @@ export interface Obstacle {
   radius: number;
   height: number;
 }
+
+export interface LobbyPlayer {
+  peerId: string;
+  username: string;
+  class: string;
+  isHost: boolean;
+}

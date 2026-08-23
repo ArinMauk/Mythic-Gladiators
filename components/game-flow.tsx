@@ -11,10 +11,47 @@ import { GameArenaScreen } from "./game-arena-screen"
 
 type Screen = "login" | "signup" | "game-type" | "class-selection" | "skill-selection" | "level-selection" | "game"
 
+import { useEffect } from "react"
+import { useGame } from "@/lib/game-context"
+
 export function GameFlow() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("login")
 
-  const handleNext = () => {
+  useEffect(() => {
+    console.log(`=== [GameFlow] Screen Transition -> ${currentScreen} ===`)
+  }, [currentScreen])
+
+  const { 
+    isMultiplayer, setIsMultiplayer, 
+    isHost, setIsHost, 
+    roomId, setRoomId, 
+    setGameMode, 
+    companionType, setCompanionType 
+  } = useGame()
+
+  useEffect(() => {
+    // Check if we are in a room URL
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search)
+      const roomParam = params.get("room")
+      if (roomParam) {
+        setIsMultiplayer(true)
+        setIsHost(false)
+        setRoomId(roomParam)
+        // Default to players companion in joining mode
+        setCompanionType("players")
+        // The game mode will be updated upon synchronization with host,
+        // but default to pve for initial screen gating
+        setGameMode("pve")
+      }
+    }
+  }, [])
+
+  const handleNext = (target?: Screen) => {
+    if (target && typeof target === "string") {
+      setCurrentScreen(target)
+      return
+    }
     switch (currentScreen) {
       case "login":
       case "signup":
@@ -27,7 +64,17 @@ export function GameFlow() {
         setCurrentScreen("skill-selection")
         break
       case "skill-selection":
-        setCurrentScreen("level-selection")
+        if (companionType === "players" || isMultiplayer) {
+          if (!isMultiplayer) {
+            setIsMultiplayer(true)
+            setIsHost(true)
+            const randomCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+            setRoomId(randomCode)
+          }
+          setCurrentScreen("game")
+        } else {
+          setCurrentScreen("level-selection")
+        }
         break
       case "level-selection":
         setCurrentScreen("game")

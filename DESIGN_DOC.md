@@ -101,3 +101,13 @@ We implemented sophisticated automated AI logic to mimic standard WoW PvE mechan
 2. **Dynamic Aggro:** The boss updates its target dynamically to focus the party member with the highest active threat.
 3. **Melee Smashes:** Moves towards target, stopping within 6m to channel high-damage physical *Boss Smashes*.
 4. **Environment Hazard Circles:** Periodically channels *Rain of Fire* (2.5s cast, 14s cooldown), spawning semi-transparent ground hazard zones centered underneath active players that tick for fire damage over time.
+
+---
+
+## 5. Persistent Character Progression Architecture
+
+For detailed architectural flowcharts, database schemas, and domain service designs regarding accounts, gladiator persistence, and post-match progression rewards, see:
+* **[Persistent Character Progression & Economy System (Wiki)](./wiki/character-progression.md)**
+* **[Combat System Blueprint (Master Reference)](./wiki/combat-system.md)**
+* **[Multiplayer Waiting Lobby & WebRTC Sync Design](./wiki/multiplayer-lobby.md)**
+

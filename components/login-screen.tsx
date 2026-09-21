@@ -34,12 +34,17 @@ export function LoginScreen({ onNext, onSignup }: LoginScreenProps) {
     isMultiplayer, setIsMultiplayer,
     isHost, setIsHost,
     roomId, setRoomId,
-    setCompanionType
+    setCompanionType,
+    setUser,
+    setIsQuickplay,
+    setActiveCharacter,
+    refreshCharacters,
   } = useGame()
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loginError, setLoginError] = useState("")
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
 
   // Quick Play State
   const [quickName, setQuickName] = useState("")
@@ -57,7 +62,7 @@ export function LoginScreen({ onNext, onSignup }: LoginScreenProps) {
     }
   }, [isJoining])
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email.trim()) {
       setLoginError("Please enter your email or username")
@@ -67,11 +72,40 @@ export function LoginScreen({ onNext, onSignup }: LoginScreenProps) {
       setLoginError("Please enter your password")
       return
     }
-    setIsMultiplayer(false)
-    setIsHost(false)
-    setRoomId("")
-    setUsername(email.split("@")[0])
-    onNext() // goes to game-type (default pathway)
+
+    setIsLoggingIn(true)
+    setLoginError("")
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          usernameOrEmail: email.trim(),
+          password,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        setLoginError(data.error || "Login failed")
+        setIsLoggingIn(false)
+        return
+      }
+
+      setIsMultiplayer(false)
+      setIsHost(false)
+      setRoomId("")
+      setUser(data.user)
+      setIsQuickplay(false)
+      setActiveCharacter(null)
+      await refreshCharacters()
+      onNext("character-selection")
+    } catch (err) {
+      setLoginError("Network error during login")
+    } finally {
+      setIsLoggingIn(false)
+    }
   }
 
   const handleQuickPlay = (e: React.FormEvent) => {
@@ -88,6 +122,8 @@ export function LoginScreen({ onNext, onSignup }: LoginScreenProps) {
     setIsHost(true)
     setCompanionType("players")
     setGameMode(quickMode)
+    setIsQuickplay(true)
+    setActiveCharacter(null)
 
     // Generate custom Room ID (e.g., MG-XXXX)
     const randomCode = Math.random().toString(36).substring(2, 8).toUpperCase()
@@ -105,6 +141,8 @@ export function LoginScreen({ onNext, onSignup }: LoginScreenProps) {
     }
 
     setUsername(quickName.trim())
+    setIsQuickplay(true)
+    setActiveCharacter(null)
     // selectedClass and roomId are already initialized in GameFlow / useEffect
     onNext("skill-selection")
   }
@@ -361,10 +399,11 @@ export function LoginScreen({ onNext, onSignup }: LoginScreenProps) {
 
                     <Button
                       type="submit"
+                      disabled={isLoggingIn}
                       variant="secondary"
                       className="w-full text-xs font-bold tracking-wider uppercase py-3 border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900"
                     >
-                      Sign In & Play Solo
+                      {isLoggingIn ? "Signing In..." : "Sign In & Manage Gladiators"}
                     </Button>
 
                     <p className="text-center text-[11px] text-zinc-500">

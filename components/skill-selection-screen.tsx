@@ -81,12 +81,16 @@ const specColors: Record<string, string> = {
 }
 
 export function SkillSelectionScreen({ onNext, onBack }: SkillSelectionScreenProps) {
-  const { selectedClass, selectedTalents, setSelectedTalents } = useGame()
+  const { selectedClass, selectedTalents, setSelectedTalents, activeCharacter, setActiveCharacter } = useGame()
   
   // Find current class spec configuration
-  const classKey = selectedClass || "warrior"
+  const classKey = selectedClass || activeCharacter?.class || "warrior"
   const classConfig = (talentsData as any)[classKey]
   const trees = classConfig?.trees || []
+
+  const totalPoints = activeCharacter
+    ? (activeCharacter.unspentTalentPoints || 0) + (activeCharacter.selectedTalents?.length || 0)
+    : 3
 
   // Initialize temp points spent array per tree: [ [0, 0, 0], [0, 0, 0], [0, 0, 0] ]
   const [tempTalents, setTempTalents] = useState<number[][]>([
@@ -94,11 +98,18 @@ export function SkillSelectionScreen({ onNext, onBack }: SkillSelectionScreenPro
     [0, 0, 0],
     [0, 0, 0]
   ])
-  const [pointsRemaining, setPointsRemaining] = useState(3)
+  const [pointsRemaining, setPointsRemaining] = useState(totalPoints)
+  const [isSaving, setIsSaving] = useState(false)
 
-  // Hydrate from context on load
+  // Hydrate from context / activeCharacter on load
   useEffect(() => {
-    if (selectedTalents && selectedTalents.length > 0) {
+    const talentsToHydrate = (activeCharacter?.selectedTalents && activeCharacter.selectedTalents.length > 0)
+      ? activeCharacter.selectedTalents
+      : (selectedTalents && selectedTalents.length > 0)
+      ? selectedTalents
+      : []
+
+    if (talentsToHydrate.length > 0) {
       const initialAllocation = [
         [0, 0, 0],
         [0, 0, 0],
@@ -107,16 +118,18 @@ export function SkillSelectionScreen({ onNext, onBack }: SkillSelectionScreenPro
       let spent = 0
       trees.forEach((tree: any, treeIdx: number) => {
         tree.talents.forEach((talent: any, talentIdx: number) => {
-          if (selectedTalents.includes(talent.id)) {
+          if (talentsToHydrate.includes(talent.id)) {
             initialAllocation[treeIdx][talentIdx] = 1
             spent += 1
           }
         })
       })
       setTempTalents(initialAllocation)
-      setPointsRemaining(Math.max(0, 3 - spent))
+      setPointsRemaining(Math.max(0, totalPoints - spent))
+    } else {
+      setPointsRemaining(totalPoints)
     }
-  }, [selectedTalents, trees])
+  }, [selectedTalents, activeCharacter, trees, totalPoints])
 
   const canAllocate = (treeIndex: number, talentIndex: number) => {
     if (pointsRemaining <= 0) return false
@@ -164,7 +177,7 @@ export function SkillSelectionScreen({ onNext, onBack }: SkillSelectionScreenPro
     }
   }
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     const finalizedTalents: string[] = []
     trees.forEach((tree: any, treeIdx: number) => {
       tree.talents.forEach((talent: any, talentIdx: number) => {
@@ -174,6 +187,31 @@ export function SkillSelectionScreen({ onNext, onBack }: SkillSelectionScreenPro
       })
     })
     setSelectedTalents(finalizedTalents)
+
+    if (activeCharacter) {
+      setIsSaving(true)
+      try {
+        const res = await fetch(`/api/characters/${activeCharacter.id}/talents`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            selectedTalents: finalizedTalents,
+            unspentTalentPoints: pointsRemaining,
+          }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.character) {
+            setActiveCharacter(data.character)
+          }
+        }
+      } catch (err) {
+        console.error("Failed to save talents to character:", err)
+      } finally {
+        setIsSaving(false)
+      }
+    }
+
     onNext()
   }
 
@@ -183,7 +221,7 @@ export function SkillSelectionScreen({ onNext, onBack }: SkillSelectionScreenPro
       [0, 0, 0],
       [0, 0, 0]
     ])
-    setPointsRemaining(3)
+    setPointsRemaining(totalPoints)
   }
 
   return (
@@ -197,14 +235,23 @@ export function SkillSelectionScreen({ onNext, onBack }: SkillSelectionScreenPro
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Class Selection
+          {activeCharacter ? "Back to Match Setup" : "Back to Class Selection"}
         </button>
 
         {/* Title */}
         <div className="text-center space-y-1.5">
           <h1 className="text-4xl font-extrabold tracking-widest text-foreground uppercase">Class Spec Talents</h1>
           <p className="text-muted-foreground text-sm max-w-md mx-auto">
-            Spend up to <span className="text-amber-400 font-bold">3 Talent Points</span> across the specialization trees to customize your abilities.
+            {activeCharacter ? (
+              <>
+                Gladiator: <span className="text-primary font-bold">{activeCharacter.name}</span> (Level {activeCharacter.level}) •{" "}
+                <span className="text-amber-400 font-bold">{totalPoints} Total Talent Point{totalPoints === 1 ? "" : "s"}</span>
+              </>
+            ) : (
+              <>
+                Spend up to <span className="text-amber-400 font-bold">3 Talent Points</span> across the specialization trees to customize your abilities.
+              </>
+            )}
           </p>
         </div>
 
@@ -224,7 +271,7 @@ export function SkillSelectionScreen({ onNext, onBack }: SkillSelectionScreenPro
             variant="outline"
             size="sm"
             onClick={handleReset}
-            disabled={pointsRemaining === 3}
+            disabled={pointsRemaining === totalPoints}
             className="border-zinc-700 hover:border-zinc-500 text-zinc-400 hover:text-zinc-200 text-xs py-1"
           >
             Reset Trees

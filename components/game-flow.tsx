@@ -1,18 +1,26 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { LoginScreen } from "./login-screen"
 import { SignupScreen } from "./signup-screen"
+import { CharacterSelectionScreen } from "./character-selection-screen"
 import { GameTypeScreen } from "./game-type-screen"
 import { ClassSelectionScreen } from "./class-selection-screen"
 import { SkillSelectionScreen } from "./skill-selection-screen"
 import { LevelSelectionScreen } from "./level-selection-screen"
 import { GameArenaScreen } from "./game-arena-screen"
-
-type Screen = "login" | "signup" | "game-type" | "class-selection" | "skill-selection" | "level-selection" | "game"
-
-import { useEffect } from "react"
 import { useGame } from "@/lib/game-context"
+import { CharacterModel } from "@/lib/progression/types"
+
+type Screen =
+  | "login"
+  | "signup"
+  | "character-selection"
+  | "game-type"
+  | "class-selection"
+  | "skill-selection"
+  | "level-selection"
+  | "game"
 
 export function GameFlow() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("login")
@@ -21,12 +29,21 @@ export function GameFlow() {
     console.log(`=== [GameFlow] Screen Transition -> ${currentScreen} ===`)
   }, [currentScreen])
 
-  const { 
-    isMultiplayer, setIsMultiplayer, 
-    isHost, setIsHost, 
-    roomId, setRoomId, 
-    setGameMode, 
-    companionType, setCompanionType 
+  const {
+    user,
+    activeCharacter,
+    setActiveCharacter,
+    setIsQuickplay,
+    isMultiplayer,
+    setIsMultiplayer,
+    isHost,
+    setIsHost,
+    roomId,
+    setRoomId,
+    setGameMode,
+    companionType,
+    setCompanionType,
+    logout,
   } = useGame()
 
   useEffect(() => {
@@ -38,10 +55,7 @@ export function GameFlow() {
         setIsMultiplayer(true)
         setIsHost(false)
         setRoomId(roomParam)
-        // Default to players companion in joining mode
         setCompanionType("players")
-        // The game mode will be updated upon synchronization with host,
-        // but default to pve for initial screen gating
         setGameMode("pve")
       }
     }
@@ -55,10 +69,17 @@ export function GameFlow() {
     switch (currentScreen) {
       case "login":
       case "signup":
+        setCurrentScreen("character-selection")
+        break
+      case "character-selection":
         setCurrentScreen("game-type")
         break
       case "game-type":
-        setCurrentScreen("class-selection")
+        if (activeCharacter) {
+          setCurrentScreen("skill-selection")
+        } else {
+          setCurrentScreen("class-selection")
+        }
         break
       case "class-selection":
         setCurrentScreen("skill-selection")
@@ -87,20 +108,35 @@ export function GameFlow() {
       case "signup":
         setCurrentScreen("login")
         break
-      case "game-type":
+      case "character-selection":
         setCurrentScreen("login")
+        break
+      case "game-type":
+        if (activeCharacter || user) {
+          setCurrentScreen("character-selection")
+        } else {
+          setCurrentScreen("login")
+        }
         break
       case "class-selection":
         setCurrentScreen("game-type")
         break
       case "skill-selection":
-        setCurrentScreen("class-selection")
+        if (activeCharacter) {
+          setCurrentScreen("game-type")
+        } else {
+          setCurrentScreen("class-selection")
+        }
         break
       case "level-selection":
         setCurrentScreen("skill-selection")
         break
       case "game":
-        setCurrentScreen("level-selection")
+        if (activeCharacter) {
+          setCurrentScreen("character-selection")
+        } else {
+          setCurrentScreen("level-selection")
+        }
         break
     }
   }
@@ -109,14 +145,50 @@ export function GameFlow() {
     setCurrentScreen("signup")
   }
 
+  const handleSelectCharacter = (char: CharacterModel) => {
+    setActiveCharacter(char)
+    setIsQuickplay(false)
+    setCurrentScreen("game-type")
+  }
+
+  const handleQuickplayFromRoster = () => {
+    setIsQuickplay(true)
+    setActiveCharacter(null)
+    setCurrentScreen("skill-selection")
+  }
+
+  const handleLogoutFromRoster = async () => {
+    await logout()
+    setCurrentScreen("login")
+  }
+
   return (
     <main className="min-h-screen bg-background">
-      {currentScreen === "login" && <LoginScreen onNext={handleNext} onSignup={handleSignup} />}
-      {currentScreen === "signup" && <SignupScreen onNext={handleNext} onBack={handleBack} />}
-      {currentScreen === "game-type" && <GameTypeScreen onNext={handleNext} onBack={handleBack} />}
-      {currentScreen === "class-selection" && <ClassSelectionScreen onNext={handleNext} onBack={handleBack} />}
-      {currentScreen === "skill-selection" && <SkillSelectionScreen onNext={handleNext} onBack={handleBack} />}
-      {currentScreen === "level-selection" && <LevelSelectionScreen onNext={handleNext} onBack={handleBack} />}
+      {currentScreen === "login" && (
+        <LoginScreen onNext={handleNext} onSignup={handleSignup} />
+      )}
+      {currentScreen === "signup" && (
+        <SignupScreen onNext={handleNext} onBack={handleBack} />
+      )}
+      {currentScreen === "character-selection" && (
+        <CharacterSelectionScreen
+          onSelectCharacter={handleSelectCharacter}
+          onQuickplay={handleQuickplayFromRoster}
+          onLogout={handleLogoutFromRoster}
+        />
+      )}
+      {currentScreen === "game-type" && (
+        <GameTypeScreen onNext={handleNext} onBack={handleBack} />
+      )}
+      {currentScreen === "class-selection" && (
+        <ClassSelectionScreen onNext={handleNext} onBack={handleBack} />
+      )}
+      {currentScreen === "skill-selection" && (
+        <SkillSelectionScreen onNext={handleNext} onBack={handleBack} />
+      )}
+      {currentScreen === "level-selection" && (
+        <LevelSelectionScreen onNext={handleNext} onBack={handleBack} />
+      )}
       {currentScreen === "game" && <GameArenaScreen onBack={handleBack} />}
     </main>
   )

@@ -16,7 +16,7 @@ interface SignupScreenProps {
 }
 
 export function SignupScreen({ onNext, onBack }: SignupScreenProps) {
-    const { setUsername } = useGame()
+    const { setUsername, setUser, setIsQuickplay, setActiveCharacter, refreshCharacters } = useGame()
     const [formData, setFormData] = useState({
         username: "",
         email: "",
@@ -24,13 +24,14 @@ export function SignupScreen({ onNext, onBack }: SignupScreenProps) {
         confirmPassword: "",
     })
     const [error, setError] = useState("")
+    const [isSubmitting, setIsSubmitting] = useState(false)
 
     const handleChange = (field: keyof typeof formData) => (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData((prev) => ({ ...prev, [field]: e.target.value }))
         setError("")
     }
 
-    const handleSignup = (e: React.FormEvent) => {
+    const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault()
 
         if (!formData.username.trim()) {
@@ -62,8 +63,38 @@ export function SignupScreen({ onNext, onBack }: SignupScreenProps) {
             return
         }
 
-        setUsername(formData.username)
-        onNext()
+        setIsSubmitting(true)
+        setError("")
+
+        try {
+            const res = await fetch("/api/auth/register", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    username: formData.username.trim(),
+                    email: formData.email.trim(),
+                    password: formData.password,
+                }),
+            })
+
+            const data = await res.json()
+            if (!res.ok) {
+                setError(data.error || "Failed to create account")
+                setIsSubmitting(false)
+                return
+            }
+
+            setUsername(data.user.username)
+            setUser(data.user)
+            setIsQuickplay(false)
+            setActiveCharacter(null)
+            await refreshCharacters()
+            onNext()
+        } catch (err) {
+            setError("Network error during registration")
+        } finally {
+            setIsSubmitting(false)
+        }
     }
 
     return (

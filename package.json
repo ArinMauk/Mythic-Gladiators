@@ -13,7 +13,7 @@
     "dev": "next dev",
     "lint": "eslint .",
     "start": "next start",
-    "test": "npx tsx --test lib/progression/__tests__/*.test.ts lib/db/__tests__/*.test.ts",
+    "test": "npx tsx --test lib/progression/__tests__/*.test.ts lib/db/__tests__/*.test.ts lib/items/__tests__/*.test.ts",
     "build:nvm": "node run-next.js build",
     "dev:nvm": "node run-next.js dev",
     "start:nvm": "node run-next.js start"

@@ -92,9 +92,21 @@ export function migrateDatabase(db: Database.Database): void {
       outcome TEXT NOT NULL,
       xp_awarded INTEGER NOT NULL DEFAULT 0,
       gold_awarded INTEGER NOT NULL DEFAULT 0,
+      items_awarded TEXT NOT NULL DEFAULT '[]',
       completed_at INTEGER NOT NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_match_records_character ON match_records(character_id);
   `)
+
+  // Safe incremental migration for existing databases
+  try {
+    const tableInfo = db.pragma("table_info(match_records)") as Array<{ name: string }>
+    const hasItemsAwarded = tableInfo.some((col) => col.name === "items_awarded")
+    if (!hasItemsAwarded) {
+      db.exec("ALTER TABLE match_records ADD COLUMN items_awarded TEXT NOT NULL DEFAULT '[]'")
+    }
+  } catch (e) {
+    // Ignore if table doesn't exist yet or already migrated
+  }
 }

@@ -1,0 +1,236 @@
+[
+  {
+    "id": "rusted_gladiator_sword",
+    "name": "Rusted Gladiator Sword",
+    "description": "A battle-scarred blade forged from arena iron. Still sharp enough to cleave flesh.",
+    "type": "equipment",
+    "slot": "weapon",
+    "rarity": "common",
+    "requiredLevel": 1,
+    "allowedClasses": ["warrior", "paladin", "rogue"],
+    "stats": {
+      "damageMultiplier": 0.08
+    },
+    "buyPrice": 40,
+    "sellPrice": 15,
+    "icon": "Sword",
+    "visual": {
+      "modelId": "sword_rusted_01",
+      "attachmentPoint": "hand_right"
+    }
+  },
+  {
+    "id": "iron_gladiator_helm",
+    "name": "Iron Gladiator Helm",
+    "description": "Standard issue arena helm with narrow slit eyeholes for protection against blades.",
+    "type": "equipment",
+    "slot": "head",
+    "rarity": "common",
+    "requiredLevel": 1,
+    "allowedClasses": ["warrior", "paladin"],
+    "stats": {
+      "armor": 35,
+      "maxHealth": 40
+    },
+    "buyPrice": 50,
+    "sellPrice": 20,
+    "icon": "Shield",
+    "visual": {
+      "modelId": "helm_iron_01",
+      "attachmentPoint": "head"
+    }
+  },
+  {
+    "id": "iron_breastplate",
+    "name": "Iron Breastplate",
+    "description": "Heavy forged breastplate capable of deflecting direct strikes.",
+    "type": "equipment",
+    "slot": "chest",
+    "rarity": "uncommon",
+    "requiredLevel": 2,
+    "allowedClasses": ["warrior", "paladin"],
+    "stats": {
+      "armor": 70,
+      "maxHealth": 90
+    },
+    "buyPrice": 110,
+    "sellPrice": 45,
+    "icon": "Shield",
+    "visual": {
+      "modelId": "chest_iron_01",
+      "attachmentPoint": "torso"
+    }
+  },
+  {
+    "id": "initiate_staff",
+    "name": "Initiate Staff",
+    "description": "A carved oak staff that channels divine and elemental energy.",
+    "type": "equipment",
+    "slot": "weapon",
+    "rarity": "common",
+    "requiredLevel": 1,
+    "allowedClasses": ["priest", "mage", "warlock", "shaman"],
+    "stats": {
+      "healingMultiplier": 0.10,
+      "spellCrit": 0.04
+    },
+    "buyPrice": 40,
+    "sellPrice": 15,
+    "icon": "Sparkles",
+    "visual": {
+      "modelId": "staff_initiate_01",
+      "attachmentPoint": "hand_right"
+    }
+  },
+  {
+    "id": "acolyte_hood",
+    "name": "Acolyte Hood",
+    "description": "Simple cowl worn by initiates of the holy light.",
+    "type": "equipment",
+    "slot": "head",
+    "rarity": "common",
+    "requiredLevel": 1,
+    "allowedClasses": ["priest", "mage", "warlock"],
+    "stats": {
+      "maxHealth": 35,
+      "spellCrit": 0.03
+    },
+    "buyPrice": 45,
+    "sellPrice": 18,
+    "icon": "Heart",
+    "visual": {
+      "modelId": "hood_acolyte_01",
+      "attachmentPoint": "head"
+    }
+  },
+  {
+    "id": "acolyte_robe",
+    "name": "Acolyte Robe",
+    "description": "Consecrated linen vestments offering spirit clarity and healing focus.",
+    "type": "equipment",
+    "slot": "chest",
+    "rarity": "uncommon",
+    "requiredLevel": 2,
+    "allowedClasses": ["priest", "mage", "warlock"],
+    "stats": {
+      "maxHealth": 70,
+      "healingMultiplier": 0.08,
+      "spellCrit": 0.05
+    },
+    "buyPrice": 95,
+    "sellPrice": 40,
+    "icon": "Sparkles",
+    "visual": {
+      "modelId": "robe_acolyte_01",
+      "attachmentPoint": "torso"
+    }
+  },
+  {
+    "id": "worn_boots",
+    "name": "Worn Gladiator Boots",
+    "description": "Scuffed leather boots providing dependable footing on sandy arena floors.",
+    "type": "equipment",
+    "slot": "feet",
+    "rarity": "common",
+    "requiredLevel": 1,
+    "stats": {
+      "armor": 15,
+      "speed": 0.6
+    },
+    "buyPrice": 30,
+    "sellPrice": 12,
+    "icon": "Footprints",
+    "visual": {
+      "modelId": "boots_worn_01",
+      "attachmentPoint": "feet"
+    }
+  },
+  {
+    "id": "reinforced_gloves",
+    "name": "Reinforced Gloves",
+    "description": "Studded leather handwraps that stabilize weapon grips and spellcasting.",
+    "type": "equipment",
+    "slot": "hands",
+    "rarity": "common",
+    "requiredLevel": 1,
+    "stats": {
+      "armor": 15,
+      "damageMultiplier": 0.03,
+      "spellCrit": 0.02
+    },
+    "buyPrice": 35,
+    "sellPrice": 14,
+    "icon": "Hand",
+    "visual": {
+      "modelId": "gloves_leather_01",
+      "attachmentPoint": "hands"
+    }
+  },
+  {
+    "id": "berserker_greaves",
+    "name": "Berserker Greaves",
+    "description": "Spiked steel leg guards favored by bloodthirsty gladiators.",
+    "type": "equipment",
+    "slot": "legs",
+    "rarity": "rare",
+    "requiredLevel": 2,
+    "stats": {
+      "armor": 45,
+      "maxHealth": 60,
+      "speed": 0.8
+    },
+    "buyPrice": 140,
+    "sellPrice": 60,
+    "icon": "Shield",
+    "visual": {
+      "modelId": "legs_berserker_01",
+      "attachmentPoint": "legs"
+    }
+  },
+  {
+    "id": "champions_greatsword",
+    "name": "Champion's Greatsword",
+    "description": "An imposing two-handed blade awarded only to undefeated arena victors.",
+    "type": "equipment",
+    "slot": "weapon",
+    "rarity": "rare",
+    "requiredLevel": 3,
+    "allowedClasses": ["warrior", "paladin"],
+    "stats": {
+      "damageMultiplier": 0.20,
+      "spellCrit": 0.06
+    },
+    "buyPrice": 220,
+    "sellPrice": 95,
+    "icon": "Sword",
+    "visual": {
+      "modelId": "sword_champion_01",
+      "attachmentPoint": "hand_right"
+    }
+  },
+  {
+    "id": "mythic_gladiator_crown",
+    "name": "Crown of the Mythic Champion",
+    "description": "A legendary coronet bathed in golden light. Grants unmatched resilience and power.",
+    "type": "equipment",
+    "slot": "head",
+    "rarity": "epic",
+    "requiredLevel": 3,
+    "stats": {
+      "armor": 80,
+      "maxHealth": 150,
+      "damageMultiplier": 0.10,
+      "healingMultiplier": 0.10,
+      "spellCrit": 0.08,
+      "speed": 1.0
+    },
+    "buyPrice": 350,
+    "sellPrice": 150,
+    "icon": "Crown",
+    "visual": {
+      "modelId": "crown_mythic_01",
+      "attachmentPoint": "head",
+      "cosmeticId": "golden_halo"
+    }
+  }
+]

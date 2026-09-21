@@ -26,8 +26,12 @@ import {
   Swords,
   ChevronRight,
   Zap,
+  Store,
+  Layers,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { InventoryEquipmentModal } from "./inventory-equipment-modal"
+import { ShopModal } from "./shop-modal"
 
 interface CharacterSelectionScreenProps {
   onSelectCharacter: (char: CharacterModel) => void
@@ -62,6 +66,8 @@ export function CharacterSelectionScreen({
   const [creationError, setCreationError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [inventoryChar, setInventoryChar] = useState<CharacterModel | null>(null)
+  const [shopChar, setShopChar] = useState<CharacterModel | null>(null)
 
   const handleCreateCharacter = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -396,13 +402,41 @@ export function CharacterSelectionScreen({
                       </div>
                     </div>
 
-                    {/* Bottom Enter Arena Button */}
-                    <div className="border-t border-zinc-800/80 bg-zinc-950/40 p-3 px-5 flex items-center justify-between group-hover:bg-primary/10 transition-colors">
+                    {/* Actions Row */}
+                    <div className="border-t border-zinc-800/80 bg-zinc-950/40 p-2.5 px-4 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setInventoryChar(char)
+                          }}
+                          className="h-7 px-2.5 text-[11px] font-bold border-zinc-800 hover:border-zinc-600 bg-zinc-900/60 text-zinc-300"
+                        >
+                          <Layers className="w-3 h-3 mr-1 text-primary" />
+                          Gear & Bags
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setShopChar(char)
+                          }}
+                          className="h-7 px-2.5 text-[11px] font-bold border-zinc-800 hover:border-zinc-600 bg-zinc-900/60 text-yellow-400"
+                        >
+                          <Store className="w-3 h-3 mr-1 text-yellow-400" />
+                          Armory Shop
+                        </Button>
+                      </div>
+
                       <span className="text-xs font-bold text-zinc-400 group-hover:text-primary transition-colors flex items-center gap-1">
                         <Play className="w-3.5 h-3.5" />
-                        Enter Arena
+                        Arena
+                        <ChevronRight className="w-3.5 h-3.5 text-zinc-600 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
                       </span>
-                      <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-primary group-hover:translate-x-1 transition-all" />
                     </div>
                   </Card>
                 )
@@ -411,6 +445,25 @@ export function CharacterSelectionScreen({
           )}
         </section>
       </div>
+
+      {/* Modals */}
+      {inventoryChar && (
+        <InventoryEquipmentModal
+          character={
+            characters.find((c) => c.id === inventoryChar.id) || inventoryChar
+          }
+          isOpen={Boolean(inventoryChar)}
+          onClose={() => setInventoryChar(null)}
+        />
+      )}
+
+      {shopChar && (
+        <ShopModal
+          character={characters.find((c) => c.id === shopChar.id) || shopChar}
+          isOpen={Boolean(shopChar)}
+          onClose={() => setShopChar(null)}
+        />
+      )}
 
       <footer className="relative z-10 text-center text-zinc-600 text-xs py-4">
         Mythic Gladiators • Persistent Progression Enabled

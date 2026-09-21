@@ -33,9 +33,11 @@ import ArenaCanvasContainer from "./arena-3d-canvas"
 import { ArenaErrorBoundary } from "./arena-error-boundary"
 import { MultiplayerManager } from "@/lib/multiplayer-manager"
 import { Copy, Check, Sliders, Wand2 } from "lucide-react"
+import { PostMatchProgressionDialog } from "./post-match-progression-dialog"
+import { ProgressionRewardResult } from "@/lib/progression/types"
 
 interface GameArenaScreenProps {
-  onBack: () => void
+  onBack: (target?: string) => void
 }
 
 const classIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -89,7 +91,10 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
     isHost,
     roomId,
     cheats,
-    updateCheat
+    updateCheat,
+    activeCharacter,
+    isQuickplay,
+    refreshCharacters,
   } = useGame()
   
   const [matchStarted, setMatchStarted] = useState(!isMultiplayer)
@@ -97,6 +102,9 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
     { peerId: isHost ? "host" : "client", username, class: selectedClass || "warrior", isHost }
   ])
   const simRef = useRef<CombatSimulation | null>(null)
+  const [matchId] = useState(() => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `match-${Date.now()}-${Math.random()}`))
+  const [progressionReward, setProgressionReward] = useState<ProgressionRewardResult | null>(null)
+  const [hasProcessedVictory, setHasProcessedVictory] = useState(false)
 
   const handleLevelChange = (level: "level-1" | "level-2") => {
     setSelectedLevel(level)
@@ -381,6 +389,39 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
     : bossHp <= 0
 
   const isDefeat = playerHp <= 0
+
+  // Handle post-match progression recording upon victory
+  useEffect(() => {
+    if (isVictory && !hasProcessedVictory) {
+      setHasProcessedVictory(true)
+      if (activeCharacter && !isQuickplay) {
+        const recordCompletion = async () => {
+          try {
+            const res = await fetch("/api/progression/complete-match", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                matchId,
+                characterId: activeCharacter.id,
+                arenaId: selectedLevel,
+                outcome: "victory",
+              }),
+            })
+            if (res.ok) {
+              const data = await res.json()
+              if (data.progression) {
+                setProgressionReward(data.progression)
+                await refreshCharacters()
+              }
+            }
+          } catch (err) {
+            console.error("Failed to record match completion:", err)
+          }
+        }
+        recordCompletion()
+      }
+    }
+  }, [isVictory, hasProcessedVictory, activeCharacter, isQuickplay, matchId, selectedLevel, refreshCharacters])
 
   const castAbility = (ability: Ability) => {
     if (!ability) return
@@ -1144,31 +1185,20 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
 
         </div>
 
-        {/* Victory Screen */}
+        {/* Post-Match Progression / Victory Screen */}
         {isVictory && (
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 animate-fade-in">
-            <Card className="border-yellow-500/40 bg-zinc-900 text-center p-8 max-w-md w-full mx-4 shadow-2xl relative overflow-hidden">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-yellow-500 to-amber-600 rounded-lg blur opacity-10 animate-pulse" />
-              <div className="relative">
-                <div className="w-16 h-16 bg-yellow-500/20 text-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-yellow-500/40 shadow-inner">
-                  <Sun className="w-8 h-8 animate-spin" />
-                </div>
-                <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-amber-500 mb-2 tracking-widest uppercase">
-                  Victory!
-                </h2>
-                <p className="text-zinc-400 text-sm mb-6">
-                  {selectedLevel === "level-2" ? (
-                    <span>You and your companions have triumphed and defeated the enemy gladiators!</span>
-                  ) : (
-                    <span>You and your companions have triumphed and defeated <span className="text-red-400 font-bold">{boss.name}</span>!</span>
-                  )}
-                </p>
-                <Button onClick={onBack} className="w-full bg-yellow-500 hover:bg-yellow-400 text-zinc-950 font-extrabold tracking-wider uppercase transition-colors">
-                  Return to Menu
-                </Button>
-              </div>
-            </Card>
-          </div>
+          <PostMatchProgressionDialog
+            reward={progressionReward}
+            arenaId={selectedLevel}
+            isQuickplay={isQuickplay || !activeCharacter}
+            onContinue={(target) => {
+              if (target) {
+                onBack(target)
+              } else {
+                onBack()
+              }
+            }}
+          />
         )}
 
         {/* Defeat Screen */}

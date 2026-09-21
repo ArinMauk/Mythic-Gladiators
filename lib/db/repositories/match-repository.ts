@@ -8,6 +8,7 @@ export interface MatchRecord {
   outcome: "victory" | "defeat"
   xpAwarded: number
   goldAwarded: number
+  itemsAwarded: string[]
   completedAt: number
 }
 
@@ -18,6 +19,7 @@ interface RawMatchRow {
   outcome: string
   xp_awarded: number
   gold_awarded: number
+  items_awarded?: string
   completed_at: number
 }
 
@@ -29,6 +31,7 @@ function mapRowToMatch(row: RawMatchRow): MatchRecord {
     outcome: row.outcome as "victory" | "defeat",
     xpAwarded: row.xp_awarded,
     goldAwarded: row.gold_awarded,
+    itemsAwarded: JSON.parse(row.items_awarded || "[]"),
     completedAt: row.completed_at,
   }
 }
@@ -55,8 +58,8 @@ export class MatchRepository {
   recordMatch(record: MatchRecord): void {
     const stmt = this.db.prepare(`
       INSERT INTO match_records (
-        id, character_id, arena_id, outcome, xp_awarded, gold_awarded, completed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        id, character_id, arena_id, outcome, xp_awarded, gold_awarded, items_awarded, completed_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `)
     stmt.run(
       record.id,
@@ -65,6 +68,7 @@ export class MatchRepository {
       record.outcome,
       record.xpAwarded,
       record.goldAwarded,
+      JSON.stringify(record.itemsAwarded || []),
       record.completedAt
     )
   }

@@ -1,12 +1,12 @@
-# Wiki: Persistent Character Progression & Economy System
+# Wiki: Persistent Character Progression, Equipment & Economy System
 
-This document is the authoritative guide to the **Persistent Character Progression, Account Authentication, and Progression Rewards System** in **Mythic-Gladiators**, implemented on the `feature/character-progression` branch. All flowcharts and sequence interactions are expressed using native **Mermaid** syntax.
+This document is the authoritative guide to the **Persistent Character Progression, Account Authentication, Equipment, Inventory, and Economy System** in **Mythic-Gladiators**, implemented on the `feature/items-equipment-economy` branch. All flowcharts and sequence interactions are expressed using native **Mermaid** syntax.
 
 ---
 
 ## 1. Architectural Overview & Boundary Separation
 
-The progression system strictly isolates the high-frequency combat simulation from persistence concerns. Combat simulations and React UI components do not execute SQL queries directly; all persistent data is managed through repository services and Next.js Route Handlers backed by an embedded SQLite database.
+The progression, loot, and economy architecture strictly isolates the high-frequency 60 FPS combat simulation from persistence concerns. Combat simulations and React UI components do not execute SQL queries directly; all persistent data is managed through repository services and Next.js Route Handlers backed by an embedded SQLite database.
 
 ```mermaid
 flowchart TD
@@ -15,19 +15,27 @@ flowchart TD
     VictoryTrigger{Arena Victory Event}
     PMPUI[PostMatchProgressionDialog]
     Roster[CharacterSelectionScreen]
+    InvModal[InventoryEquipmentModal]
+    ShopModal[ShopModal]
     TalentsUI[SkillSelectionScreen]
   end
 
   subgraph API [Next.js API Layer]
     MatchEndpoint[/api/progression/complete-match]
+    ShopEndpoint[/api/shop/purchase]
+    EquipEndpoint[/api/characters/:id/equip]
+    UnequipEndpoint[/api/characters/:id/unequip]
     AuthEndpoints[/api/auth/*]
     CharEndpoints[/api/characters/*]
   end
 
-  subgraph Domain [Progression Domain Service]
+  subgraph Domain [Progression & Item Services]
     Handler[MatchProgressionHandler]
     Engine[ProgressionService]
-    Config[Progression & Arena Config]
+    DropSvc[DropService]
+    EquipSvc[EquipmentService]
+    ShopSvc[ShopService]
+    ItemSvc[ItemService]
   end
 
   subgraph Storage [Persistence Layer / SQLite]
@@ -41,17 +49,23 @@ flowchart TD
   VictoryTrigger -->|matchId, arenaId, outcome| MatchEndpoint
   MatchEndpoint --> Handler
   Handler --> Engine
-  Engine --> Config
+  Handler --> DropSvc
+  DropSvc --> ItemSvc
   Handler --> MatchRepo
   Handler --> CharRepo
   MatchRepo --> DB
   CharRepo --> DB
   UserRepo --> DB
 
-  MatchEndpoint -->|ProgressionRewardResult| PMPUI
+  MatchEndpoint -->|ProgressionRewardResult + awardedItems| PMPUI
   PMPUI -->|Spend Talent Points| TalentsUI
   PMPUI -->|Return to Roster| Roster
-  TalentsUI -->|PATCH /api/characters/:id/talents| CharEndpoints
+  Roster -->|Open Gear| InvModal
+  Roster -->|Open Armory| ShopModal
+  InvModal --> EquipEndpoint
+  InvModal --> UnequipEndpoint
+  ShopModal --> ShopEndpoint
+  EquipSvc -->|applyEquipmentToActor| CS
 ```
 
 ---
@@ -65,8 +79,10 @@ Mythic Gladiators supports two distinct play patterns:
 | **Account Required** | Yes (login or registration via SQLite) | No (immediate friction-free play) |
 | **Character Storage** | Saved in SQLite (`characters` table) | In-memory ephemeral gladiator |
 | **XP & Gold Rewards** | Awarded based on arena completion | **None** (zero persistent XP/gold) |
+| **Item Drops & Loot** | Dropped items added to persistent inventory | **None** (no persistent loot awarded) |
 | **Level-Up Progression** | Permanent level increases & talent points | Ephemeral or modified via Cheats drawer |
-| **Post-Match Screen** | Full reward breakdown, XP progress bar, level-up celebration | Clearly labeled "Sandbox Trial" results screen |
+| **Equipment & Gear** | Persistent loadouts modify combat stats | Ephemeral base stats / sandbox modifiers |
+| **Post-Match Screen** | Full reward breakdown, XP progress bar, loot cards | Clearly labeled "Sandbox Trial" results screen |
 | **Talent Persistence** | Saved to database and reloaded across sessions | Reset when leaving session |
 
 ---
@@ -121,50 +137,39 @@ erDiagram
     string outcome
     int xp_awarded
     int gold_awarded
+    string items_awarded
     int completed_at
   }
 ```
 
-### Table Definitions
+---
 
-1. **`users`**: Manages player accounts with cryptographically salted passwords hashed via Node's native `crypto.scryptSync`.
-2. **`sessions`**: Server-side authentication tokens linked via HTTP-only cookie (`mg_session`).
-3. **`characters`**: Core gladiator entities. Stores level, XP, gold, unspent talent points, and JSON arrays/objects for talents, future inventory, equipment slots, and cosmetics.
-4. **`match_records`**: Audit trail of completed arena runs. Stores the unique `matchId` per game session to enforce **idempotency** and prevent duplicate reward claims.
+## 4. Item & Equipment Domain Model
+
+### A. Separation of Definition vs. Instance
+* **`ItemDefinition`**: Static game data loaded from `lib/items/data/items.json`. Defines metadata such as name, slot, rarity, class requirements, level requirements, stat bonuses, gold prices, and 3D visual anchors.
+* **`InventoryItem`**: Player-owned instance stored in character inventory as `{ instanceId: UUID, itemId: string, acquiredAt: timestamp }`. This prevents static descriptions from duplicating into the database.
+
+### B. Equipment Slots & Stat Model
+Supported slots:
+* `weapon`, `head`, `chest`, `hands`, `legs`, `feet`
+
+Combat Stats affected by equipment:
+* `maxHealth`: Increases maximum and current player health.
+* `armor`: Physical damage mitigation via the WoW formula $\frac{\text{Armor}}{\text{Armor} + 400}$.
+* `speed`: Movement and strafing velocity.
+* `spellCrit`: Critical strike chance multiplier on abilities.
+* `damageMultiplier`: Percentage multiplier applied to all outgoing player damage.
+* `healingMultiplier`: Percentage multiplier applied to all outgoing healing spells.
+
+### C. Stat Resolution Formula
+$$\text{Final Actor Combat Stats} = \text{Base Class Stats} + \text{Talents} + \sum_{\text{equipped}} \text{Item Stats}$$
 
 ---
 
-## 4. Progression Formulas & Level Curve
+## 5. Arena Loot Drops & Match Idempotency
 
-Progression values are defined centrally in `lib/progression/config.ts`:
-
-### Arena Rewards Table
-* **`level-1` (Evil Raid Boss)**: `120 XP` | `50 Gold`
-* **`level-2` (Gladiator Skirmish 4v4)**: `250 XP` | `120 Gold`
-
-### Leveling Curve & Caps
-* **Initial Level**: `1`
-* **Maximum Level Cap**: `10`
-* **Talent Points Per Level**: `1 point` awarded per level gained.
-* **XP Thresholds** (XP required to advance from Level $N$ to Level $N + 1$):
-  * Level 1 $\rightarrow$ 2: `100 XP`
-  * Level 2 $\rightarrow$ 3: `150 XP`
-  * Level 3 $\rightarrow$ 4: `220 XP`
-  * Level 4 $\rightarrow$ 5: `310 XP`
-  * Level 5 $\rightarrow$ 6: `420 XP`
-  * Level 6 $\rightarrow$ 7: `550 XP`
-  * Level 7 $\rightarrow$ 8: `700 XP`
-  * Level 8 $\rightarrow$ 9: `880 XP`
-  * Level 9 $\rightarrow$ 10: `1100 XP`
-  * Level 10 (Max Level Cap): Clamped; excess XP is retained.
-
-### Multi-Level Jump Calculation
-When a large XP reward is granted, `ProgressionService.calculateXpAddition()` iterates across thresholds:
-$$\text{while (XP} \ge \text{XP}_{\text{required}} \text{ and Level} < \text{Level}_{\text{max}}\text{): Level} \mathrel{+}= 1, \quad \text{XP} \mathrel{-}= \text{XP}_{\text{required}}, \quad \text{Talents} \mathrel{+}= 1$$
-
----
-
-## 5. Match Completion & Idempotency Sequence
+Item rewards are rolled server-side through `DropService` and integrated directly into the atomic match-completion transaction:
 
 ```mermaid
 sequenceDiagram
@@ -175,6 +180,7 @@ sequenceDiagram
   participant Handler as MatchProgressionHandler
   participant MatchRepo as MatchRepository
   participant Engine as ProgressionService
+  participant DropSvc as DropService
   participant CharRepo as CharacterRepository
   participant DB as SQLite
 
@@ -186,23 +192,38 @@ sequenceDiagram
   Handler->>MatchRepo: getMatchRecord(matchId)
   alt Match Already Claimed (Duplicate Replay)
     MatchRepo-->>Handler: Existing Record Found
-    Handler-->>API: Return ProgressionRewardResult (alreadyClaimed: true, 0 new XP/Gold)
+    Handler-->>API: Return ProgressionRewardResult (alreadyClaimed: true, previouslyAwardedItems)
     API-->>Arena: Display existing rewards without duplicate grant
   else First Time Completion
     MatchRepo-->>Handler: null (Clean Run)
     Handler->>Engine: calculateMatchProgression(...)
-    Engine-->>Handler: Return calculation (levelsGained, talentPoints, newXp, newGold)
-    Handler->>DB: Atomic Transaction: updateCharacterProgression + recordMatch
+    Handler->>DropSvc: rollDrops(arenaId, outcome)
+    DropSvc-->>Handler: Array of ItemDefinitions
+    Handler->>DB: Atomic Transaction: updateProgressionAndInventory + recordMatch
     DB-->>Handler: Transaction Committed
-    Handler-->>API: Return ProgressionRewardResult (alreadyClaimed: false)
-    API-->>Arena: 200 OK + Progression Payload
-    Arena->>Player: Mount PostMatchProgressionDialog (animated XP bar & celebrations)
+    Handler-->>API: Return ProgressionRewardResult (alreadyClaimed: false, awardedItems)
+    API-->>Arena: 200 OK + Progression & Loot Payload
+    Arena->>Player: Mount PostMatchProgressionDialog (XP bar, level-up badge, loot cards)
   end
 ```
 
+### Configured Drop Tables
+* **`level-1` (Evil Raid Boss)**: 85% chance of 1 roll from starter armor and weapons (e.g. *Iron Gladiator Helm*, *Rusted Gladiator Sword*, *Worn Boots*, *Reinforced Gloves*, *Acolyte Robe*).
+* **`level-2` (Gladiator Skirmish 4v4)**: 100% chance of 2 rolls from advanced gear pool (e.g. *Champion's Greatsword*, *Iron Breastplate*, *Acolyte Hood*, *Initiate Staff*, *Berserker Greaves*, *Crown of the Mythic Champion*).
+
 ---
 
-## 6. API Route Reference
+## 6. Economy & In-Game Shop Design
+
+The in-game economy allows gladiators to spend gold earned from arena victories in the **Gladiator's Armory** (`lib/items/data/shops.json`):
+
+* **Server-Authoritative Price Validation**: Clients submit an intent (`{ characterId, shopId, itemId }`). The server independently checks catalog pricing and verifies `character.gold >= price`.
+* **Atomic Transaction**: Deducting gold and inserting the new `InventoryItem` instance happen in a single SQLite transaction, ensuring gold cannot become negative and items cannot be lost.
+* **Account Verification**: Transactions require user session validation to prevent unauthorized purchases on another player's character.
+
+---
+
+## 7. API Route Reference
 
 | Route | Method | Description | Auth Required |
 |---|---|---|---|
@@ -212,32 +233,43 @@ sequenceDiagram
 | `/api/auth/me` | `GET` | Returns authenticated user data or 401 | Yes |
 | `/api/characters` | `GET` | Lists all gladiators owned by the authenticated player | Yes |
 | `/api/characters` | `POST` | Recruits a new gladiator (Name + Class) | Yes |
-| `/api/characters/:id` | `GET` | Fetches details for a specific gladiator | Yes |
+| `/api/characters/:id` | `GET` | Fetches details, inventory, and equipment for a specific gladiator | Yes |
 | `/api/characters/:id` | `DELETE` | Deletes a gladiator owned by the player | Yes |
 | `/api/characters/:id/talents` | `PATCH` | Saves talent tree selections and unspent points | Yes |
-| `/api/progression/complete-match` | `POST` | Records match outcome, calculates and persists rewards | Yes |
+| `/api/characters/:id/equip` | `POST` | Equips an owned inventory item into a valid equipment slot | Yes |
+| `/api/characters/:id/unequip` | `POST` | Unequips an item from an equipment slot | Yes |
+| `/api/shop` | `GET` | Returns available shop catalogs and item definitions | Yes |
+| `/api/shop/purchase` | `POST` | Authoritatively buys an item from a shop using gold | Yes |
+| `/api/progression/complete-match` | `POST` | Records match outcome, awards XP, gold, and drops atomically | Yes |
 
 ---
 
-## 7. Automated Test Suite
+## 8. Automated Test Suite
 
-Run the full progression and database test suite using:
+Run the full progression, database, and item test suite using:
 
 ```bash
 npm test
 ```
 
-### Coverage Breakdown
-* **`lib/progression/__tests__/progression-service.test.ts`** (7 unit tests):
-  * Normal XP and gold rewards on victory.
-  * Zero rewards on defeat.
-  * Partial progress without leveling up.
-  * Multi-level jumps from large rewards.
-  * Clamping at maximum level cap.
-  * Zero talent points awarded once at cap.
-  * Accurate XP percentage calculations for UI progress bars.
-* **`lib/db/__tests__/persistence.test.ts`** (4 integration tests):
-  * User account creation, `scrypt` hashing, and case-insensitive login.
-  * Gladiator character creation, load, and progression updates across reloads.
-  * Talent tree allocation and unspent talent points persistence.
-  * Idempotency enforcement verifying that identical `matchId` submissions never grant duplicate rewards.
+### Coverage Breakdown (19 Tests)
+* **`lib/items/__tests__/items-and-equipment.test.ts`** (8 tests):
+  * Static item definitions and field verification.
+  * Drop table loot rolling on victory and zero drops on defeat.
+  * Multi-roll drop behavior on higher-tier arenas.
+  * Inventory persistence across database reload.
+  * Slot validation, class restrictions, and level requirement enforcement.
+  * Deterministic equipment stat aggregation and Actor combat modification.
+  * Server-authoritative shop purchases, atomic gold deduction, and insufficient funds rejection.
+  * Idempotency guarantee preventing duplicate item drops on replayed match IDs.
+* **`lib/progression/__tests__/progression-service.test.ts`** (7 tests):
+  * XP and gold calculation.
+  * Multi-level jumps and threshold crossing.
+  * Maximum level cap clamping.
+  * Talent point awards matching levels gained.
+  * XP progress bar percentages.
+* **`lib/db/__tests__/persistence.test.ts`** (4 tests):
+  * User authentication with salted `scrypt` hashing.
+  * Character save/load persistence.
+  * Talent allocation persistence.
+  * Match record idempotency for XP and gold.

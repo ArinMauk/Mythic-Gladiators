@@ -1,3 +1,4 @@
+import crypto from "crypto"
 import { Database } from "better-sqlite3"
 import { getDb } from "@/lib/db/db"
 import { CharacterRepository } from "@/lib/db/repositories/character-repository"
@@ -5,6 +6,9 @@ import { MatchRepository } from "@/lib/db/repositories/match-repository"
 import { ProgressionService } from "./progression-service"
 import { MatchCompletionRequest, ProgressionRewardResult } from "./types"
 import { getXpRequiredForNextLevel, isMaxLevel } from "./config"
+import { DropService } from "@/lib/items/drop-service"
+import { ItemService } from "@/lib/items/item-service"
+import { InventoryItem } from "@/lib/items/types"
 
 export class MatchProgressionHandler {
   private customDb?: Database
@@ -60,6 +64,10 @@ export class MatchProgressionHandler {
         ? Math.min(100, Math.floor((character.xp / xpForNextLevel) * 100))
         : 100
 
+      const previouslyAwarded = (existingMatch.itemsAwarded || [])
+        .map((itemId) => ItemService.getDefinition(itemId))
+        .filter(Boolean)
+
       return {
         matchId,
         characterId,
@@ -77,6 +85,7 @@ export class MatchProgressionHandler {
         totalGold: character.gold,
         unspentTalentPoints: character.unspentTalentPoints,
         isMaxLevel: maxed,
+        awardedItems: previouslyAwarded,
         alreadyClaimed: true,
       }
     }
@@ -91,14 +100,28 @@ export class MatchProgressionHandler {
       outcome,
     })
 
-    // 4. Atomically persist character updates and match record
+    // 4. Roll loot drops
+    const droppedDefinitions = DropService.rollDrops(arenaId, outcome)
+    const newInventoryInstances: InventoryItem[] = droppedDefinitions.map((def) => ({
+      instanceId: crypto.randomUUID(),
+      itemId: def.id,
+      acquiredAt: Date.now(),
+    }))
+
+    const updatedInventory = [
+      ...((character.inventory || []) as InventoryItem[]),
+      ...newInventoryInstances,
+    ]
+
+    // 5. Atomically persist character progression, inventory updates, and match record
     const runTransaction = this.db.transaction(() => {
-      this.charRepo.updateProgression({
+      this.charRepo.updateProgressionAndInventory({
         id: character.id,
         level: calc.newLevel,
         xp: calc.newXp,
         gold: calc.newGold,
         unspentTalentPoints: calc.newUnspentTalentPoints,
+        inventory: updatedInventory,
       })
 
       this.matchRepo.recordMatch({
@@ -108,6 +131,7 @@ export class MatchProgressionHandler {
         outcome,
         xpAwarded: calc.xpEarned,
         goldAwarded: calc.goldEarned,
+        itemsAwarded: droppedDefinitions.map((d) => d.id),
         completedAt: Date.now(),
       })
     })
@@ -131,6 +155,7 @@ export class MatchProgressionHandler {
       totalGold: calc.newGold,
       unspentTalentPoints: calc.newUnspentTalentPoints,
       isMaxLevel: calc.isMaxLevel,
+      awardedItems: droppedDefinitions,
       alreadyClaimed: false,
     }
   }

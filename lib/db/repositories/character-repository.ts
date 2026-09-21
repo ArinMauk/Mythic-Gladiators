@@ -150,6 +150,65 @@ export class CharacterRepository {
     return this.getCharacterById(params.id)
   }
 
+  updateInventory(id: string, inventory: any[]): CharacterModel | null {
+    const now = Date.now()
+    const stmt = this.db.prepare(`
+      UPDATE characters
+      SET inventory = ?, updated_at = ?
+      WHERE id = ?
+    `)
+    stmt.run(JSON.stringify(inventory), now, id)
+    return this.getCharacterById(id)
+  }
+
+  updateEquipment(id: string, equipment: Record<string, any>): CharacterModel | null {
+    const now = Date.now()
+    const stmt = this.db.prepare(`
+      UPDATE characters
+      SET equipment = ?, updated_at = ?
+      WHERE id = ?
+    `)
+    stmt.run(JSON.stringify(equipment), now, id)
+    return this.getCharacterById(id)
+  }
+
+  updateGoldAndInventory(id: string, gold: number, inventory: any[]): CharacterModel | null {
+    const now = Date.now()
+    const stmt = this.db.prepare(`
+      UPDATE characters
+      SET gold = ?, inventory = ?, updated_at = ?
+      WHERE id = ?
+    `)
+    stmt.run(gold, JSON.stringify(inventory), now, id)
+    return this.getCharacterById(id)
+  }
+
+  updateProgressionAndInventory(params: {
+    id: string
+    level: number
+    xp: number
+    gold: number
+    unspentTalentPoints: number
+    inventory: any[]
+  }): CharacterModel | null {
+    const now = Date.now()
+    const stmt = this.db.prepare(`
+      UPDATE characters
+      SET level = ?, xp = ?, gold = ?, unspent_talent_points = ?, inventory = ?, updated_at = ?
+      WHERE id = ?
+    `)
+    stmt.run(
+      params.level,
+      params.xp,
+      params.gold,
+      params.unspentTalentPoints,
+      JSON.stringify(params.inventory),
+      now,
+      params.id
+    )
+    return this.getCharacterById(params.id)
+  }
+
   deleteCharacter(id: string, userId: string): boolean {
     const stmt = this.db.prepare(`
       DELETE FROM characters WHERE id = ? AND user_id = ?

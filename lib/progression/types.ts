@@ -74,6 +74,7 @@ export interface ProgressionRewardResult {
   totalGold: number
   unspentTalentPoints: number
   isMaxLevel: boolean
+  awardedItems?: any[]
   alreadyClaimed?: boolean
 }
 

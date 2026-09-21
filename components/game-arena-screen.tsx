@@ -35,6 +35,7 @@ import { MultiplayerManager } from "@/lib/multiplayer-manager"
 import { Copy, Check, Sliders, Wand2 } from "lucide-react"
 import { PostMatchProgressionDialog } from "./post-match-progression-dialog"
 import { ProgressionRewardResult } from "@/lib/progression/types"
+import { EquipmentService } from "@/lib/items/equipment-service"
 
 interface GameArenaScreenProps {
   onBack: (target?: string) => void
@@ -117,6 +118,13 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
     // Create the final clean CombatSimulation with the chosen level
     const sim = new CombatSimulation(username, selectedClass || "warrior", level);
     applyTalentsToActor(sim.playerActor, selectedTalents);
+    if (activeCharacter && !isQuickplay) {
+      const eqStats = EquipmentService.calculateEquipmentStats(
+        activeCharacter.equipment,
+        activeCharacter.inventory
+      );
+      EquipmentService.applyEquipmentToActor(sim.playerActor, eqStats);
+    }
 
     // Populate actual co-op players from lobbyPlayers roster
     lobbyPlayers.forEach((lp) => {
@@ -167,6 +175,13 @@ export function GameArenaScreen({ onBack }: GameArenaScreenProps) {
       const sim = new CombatSimulation(username, selectedClass || "warrior", selectedLevel || "level-1")
       console.log("=== [GameArenaScreen] Applying talents to player actor ===", selectedTalents);
       applyTalentsToActor(sim.playerActor, selectedTalents)
+      if (activeCharacter && !isQuickplay) {
+        const eqStats = EquipmentService.calculateEquipmentStats(
+          activeCharacter.equipment,
+          activeCharacter.inventory
+        );
+        EquipmentService.applyEquipmentToActor(sim.playerActor, eqStats);
+      }
       simRef.current = sim
       console.log("=== [GameArenaScreen] CombatSimulation Initialized Successfully! ===", {
         actors: sim.actors.map(a => ({ id: a.id, name: a.name, faction: a.faction, class: a.class })),

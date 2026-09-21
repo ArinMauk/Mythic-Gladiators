@@ -1,0 +1,25 @@
+{
+  "level-1": {
+    "rolls": 1,
+    "chance": 0.85,
+    "pool": [
+      { "itemId": "iron_gladiator_helm", "weight": 25 },
+      { "itemId": "rusted_gladiator_sword", "weight": 25 },
+      { "itemId": "worn_boots", "weight": 30 },
+      { "itemId": "reinforced_gloves", "weight": 25 },
+      { "itemId": "acolyte_robe", "weight": 15 }
+    ]
+  },
+  "level-2": {
+    "rolls": 2,
+    "chance": 1.0,
+    "pool": [
+      { "itemId": "champions_greatsword", "weight": 20 },
+      { "itemId": "iron_breastplate", "weight": 25 },
+      { "itemId": "acolyte_hood", "weight": 25 },
+      { "itemId": "initiate_staff", "weight": 25 },
+      { "itemId": "berserker_greaves", "weight": 20 },
+      { "itemId": "mythic_gladiator_crown", "weight": 10 }
+    ]
+  }
+}

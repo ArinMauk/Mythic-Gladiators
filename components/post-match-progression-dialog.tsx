@@ -183,6 +183,63 @@ export function PostMatchProgressionDialog({
             </div>
           </div>
 
+          {/* Loot Spoils Section */}
+          {reward.awardedItems && reward.awardedItems.length > 0 && (
+            <div className="space-y-2 bg-zinc-950/60 p-3.5 rounded-xl border border-amber-500/30">
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase font-extrabold text-amber-400 tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                  Arena Loot Spoils ({reward.awardedItems.length})
+                </span>
+                <span className="text-[10px] text-zinc-500">Added to Inventory</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                {reward.awardedItems.map((item: any, idx: number) => {
+                  const rarityStyle =
+                    item.rarity === "epic"
+                      ? "border-purple-500/50 bg-purple-950/30 text-purple-300"
+                      : item.rarity === "rare"
+                      ? "border-blue-500/50 bg-blue-950/30 text-blue-300"
+                      : item.rarity === "uncommon"
+                      ? "border-emerald-500/50 bg-emerald-950/30 text-emerald-300"
+                      : "border-zinc-800 bg-zinc-900/60 text-zinc-300"
+
+                  const statsSummary = [
+                    item.stats?.armor ? `+${item.stats.armor} Armor` : null,
+                    item.stats?.maxHealth ? `+${item.stats.maxHealth} HP` : null,
+                    item.stats?.damageMultiplier ? `+${Math.round(item.stats.damageMultiplier * 100)}% Dmg` : null,
+                    item.stats?.healingMultiplier ? `+${Math.round(item.stats.healingMultiplier * 100)}% Heal` : null,
+                    item.stats?.spellCrit ? `+${Math.round(item.stats.spellCrit * 100)}% Crit` : null,
+                    item.stats?.speed ? `+${item.stats.speed} Speed` : null,
+                  ].filter(Boolean).join(" • ")
+
+                  return (
+                    <div
+                      key={`${item.id}-${idx}`}
+                      className={cn(
+                        "p-2.5 rounded-lg border flex flex-col justify-between text-left",
+                        rarityStyle
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-1">
+                        <span className="text-xs font-black truncate">{item.name}</span>
+                        <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-black/40">
+                          {item.slot || "gear"}
+                        </span>
+                      </div>
+                      {statsSummary && (
+                        <span className="text-[10px] font-mono text-zinc-400 mt-1">
+                          {statsSummary}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* XP Progress toward next level */}
           <div className="space-y-2 bg-zinc-950/60 p-3.5 rounded-xl border border-zinc-800/80">
             <div className="flex items-center justify-between text-xs font-bold">

@@ -1,0 +1,20 @@
+{
+  "gladiator_armory": {
+    "id": "gladiator_armory",
+    "name": "Gladiator's Armory",
+    "description": "Stock up on weapons, armor, and gear forged by arena blacksmiths.",
+    "items": [
+      { "itemId": "rusted_gladiator_sword", "price": 40 },
+      { "itemId": "iron_gladiator_helm", "price": 50 },
+      { "itemId": "worn_boots", "price": 30 },
+      { "itemId": "reinforced_gloves", "price": 35 },
+      { "itemId": "initiate_staff", "price": 40 },
+      { "itemId": "acolyte_hood", "price": 45 },
+      { "itemId": "acolyte_robe", "price": 95 },
+      { "itemId": "iron_breastplate", "price": 110 },
+      { "itemId": "berserker_greaves", "price": 140 },
+      { "itemId": "champions_greatsword", "price": 220 },
+      { "itemId": "mythic_gladiator_crown", "price": 350 }
+    ]
+  }
+}
